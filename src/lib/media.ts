@@ -20,7 +20,7 @@ export function upload(f: File, onProgress: (p: number) => void) {
     const x = new XMLHttpRequest()
     x.open('POST', `${SUPABASE_URL}/storage/v1/object/media/${path}`)
     x.setRequestHeader('apikey', SUPABASE_KEY)
-    x.setRequestHeader('Authorization', `Bearer ${SUPABASE_KEY}`)
+    if (!SUPABASE_KEY.startsWith('sb_')) x.setRequestHeader('Authorization', `Bearer ${SUPABASE_KEY}`)
     x.setRequestHeader('Content-Type', f.type)
     x.setRequestHeader('x-upsert', 'false')
     x.upload.onprogress = e => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100))
