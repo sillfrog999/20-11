@@ -272,8 +272,8 @@ export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstel
 
       ctx.clearRect(0, 0, w, h)
 
-      angleX += 0.007
-      angleY += 0.009
+      angleX = 0
+      angleY = 0
 
       // Use the latest timeline value without restarting requestAnimationFrame.
       const timeline = sceneTimeRef.current
