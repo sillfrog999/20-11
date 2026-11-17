@@ -124,58 +124,56 @@ export function Greetings() {
   }, [activeGreeting, clientHash])
 
   // Submit new greeting
-// Submit new greeting
-const handleSubmit = async (e: FormEvent) => {
-  e.preventDefault()
-  if (isSubmitting || honeypot) return
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (isSubmitting || honeypot) return
 
-  const trimmedContent = content.trim()
+    const trimmedContent = content.trim()
+    if (trimmedContent.length < 2) {
+      setFeedback({ ok: false, message: 'Lời chúc quá ngắn. Vui lòng viết ít nhất 2 ký tự.' })
+      return
+    }
+    if (trimmedContent.length > 1500) {
+      setFeedback({ ok: false, message: 'Lời chúc không được vượt quá 1500 ký tự.' })
+      return
+    }
+    if (!isAnonymous && !name.trim()) {
+      setFeedback({ ok: false, message: 'Vui lòng nhập họ tên hoặc chọn "Gửi ẩn danh".' })
+      return
+    }
+    if (!supabase) {
+      setFeedback({ ok: false, message: 'Website chưa kết nối cơ sở dữ liệu Supabase.' })
+      return
+    }
 
-  if (trimmedContent.length < 2) {
-    setFeedback({ ok: false, message: 'Lời chúc quá ngắn. Vui lòng viết ít nhất 2 ký tự.' })
-    return
-  }
+    setIsSubmitting(true)
+    setFeedback(null)
 
-  if (trimmedContent.length > 1500) {
-    setFeedback({ ok: false, message: 'Lời chúc không được vượt quá 1500 ký tự.' })
-    return
-  }
-
-  if (!isAnonymous && !name.trim()) {
-    setFeedback({ ok: false, message: 'Vui lòng nhập họ tên hoặc chọn "Gửi ẩn danh".' })
-    return
-  }
-
-  if (!supabase) {
-    setFeedback({ ok: false, message: 'Website chưa kết nối cơ sở dữ liệu Supabase.' })
-    return
-  }
-
-  setIsSubmitting(true)
-  setFeedback(null)
-
-  const { error } = await supabase.from('greetings').insert({
-    author_name: isAnonymous ? null : name.trim().slice(0, 60),
-    is_anonymous: isAnonymous,
-    content: trimmedContent,
-  })
-
-  setIsSubmitting(false)
-
-  if (error) {
-    setFeedback({
-      ok: false,
-      message: 'Gửi thất bại. Vui lòng kiểm tra lại kết nối và thử lại.'
+    const { error } = await supabase.from('greetings').insert({
+      author_name: isAnonymous ? null : name.trim().slice(0, 60),
+      is_anonymous: isAnonymous,
+      content: trimmedContent,
     })
-  } else {
-    setContent('')
-    setName('')
-    setFeedback({
-      ok: true,
-      message: '💌 Lời chúc của bạn đã được gửi gắm thành công! Lời chúc sẽ xuất hiện trên bảng sau khi được ban cán sự duyệt.',
-    })
+
+    setIsSubmitting(false)
+
+    if (error) {
+      console.error('Lỗi gửi lời chúc Supabase:', error)
+      setFeedback({
+        ok: false,
+        message: error.message
+          ? `Gửi thất bại: ${error.message}`
+          : 'Gửi thất bại. Vui lòng kiểm tra lại kết nối Supabase và thử lại.'
+      })
+    } else {
+      setContent('')
+      setName('')
+      setFeedback({
+        ok: true,
+        message: '💌 Lời chúc của bạn đã được gửi gắm thành công! Lời chúc sẽ xuất hiện trên bảng sau khi được ban cán sự duyệt.',
+      })
+    }
   }
-}
 
   // Handle reaction click
   const handleToggleReaction = async (reactionType: string) => {
@@ -258,7 +256,7 @@ const handleSubmit = async (e: FormEvent) => {
     <section id="messages" className="section messages-section">
       <div className="section-head text-center">
         <p className="kicker">PHẦN 01</p>
-        <h2 className="section-title">Messages from Our Hearts</h2>
+        <h2 className="section-title">Lời Yêu Thương Từ Trái Tim</h2>
         <p className="section-subtitle">
           Những dòng tâm tình mộc mạc và lời chúc chân thành nhất của tập thể 9H2 gửi đến người cô kính yêu
         </p>
