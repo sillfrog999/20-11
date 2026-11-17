@@ -13,12 +13,14 @@ interface UniverseIntroProps {
 }
 
 const TOTAL_TIMELINE_MS = 60000
+const UI_UPDATE_INTERVAL = 33
 
 export function UniverseIntro({ onComplete }: UniverseIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<StarEngine | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
+  const lastUiUpdateRef = useRef(0)
 
   const [currentScene, setCurrentScene] = useState<UniverseScene>('THE_VOID')
   const [sceneElapsedMs, setSceneElapsedMs] = useState(0)
@@ -39,7 +41,6 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
 
   // Audio Toggle
   const handleToggleSound = () => {
-    // Ensure audio starts on first click if not already
     universeAudio.start().catch(() => {})
     const muted = universeAudio.toggleMute()
     setIsMuted(muted)
@@ -74,6 +75,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     const handleResize = () => {
       engine.resize()
     }
+
     window.addEventListener('resize', handleResize)
 
     // Master RAF Loop
@@ -83,11 +85,10 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       }
 
       const elapsed = timestamp - startTimeRef.current
-      setSceneElapsedMs(elapsed)
-      setProgressPercent(Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100))
 
       // Determine current scene from timeline
       let scene: UniverseScene = 'THE_VOID'
+
       if (elapsed < 10000) {
         scene = 'THE_VOID'
       } else if (elapsed < 25000) {
@@ -100,9 +101,22 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         scene = 'A_LETTER_FOR_YOU'
       }
 
-      setCurrentScene(prev => (prev !== scene && prev !== 'WARP_TRANSITION' ? scene : prev))
+      // Limit React updates to approximately 30 FPS.
+      // The canvas animation continues running at the display refresh rate.
+      if (timestamp - lastUiUpdateRef.current >= UI_UPDATE_INTERVAL) {
+        lastUiUpdateRef.current = timestamp
 
-      // Render star engine
+        setSceneElapsedMs(elapsed)
+        setProgressPercent(
+          Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100)
+        )
+
+        setCurrentScene(prev => (
+          prev !== scene && prev !== 'WARP_TRANSITION' ? scene : prev
+        ))
+      }
+
+      // Render star engine on every animation frame
       engine.render(timestamp, elapsed, scene)
 
       animFrameRef.current = requestAnimationFrame(loop)
@@ -111,9 +125,15 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     animFrameRef.current = requestAnimationFrame(loop)
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current)
+      }
+
       window.removeEventListener('resize', handleResize)
       engine.destroy()
+      engineRef.current = null
+      startTimeRef.current = null
+      lastUiUpdateRef.current = 0
     }
   }, [])
 
@@ -125,21 +145,25 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
           kicker: 'SCENE 01 • THE VOID',
           quote: 'Every universe begins with a single point.'
         }
+
       case 'CONNECT_THE_STARS':
         return {
           kicker: 'SCENE 02 • CONNECT THE STARS',
           quote: 'Every point has its place.'
         }
+
       case 'OUR_CONSTELLATION':
         return {
           kicker: 'SCENE 03 • OUR CONSTELLATION',
           quote: 'Together, we became something beautiful.'
         }
+
       case 'THE_BRIGHTEST_STAR':
         return {
           kicker: 'SCENE 04 • THE BRIGHTEST STAR',
           quote: 'And one star helped us find our way.'
         }
+
       default:
         return null
     }
