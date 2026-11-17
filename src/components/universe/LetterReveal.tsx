@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { universeAudio } from './universeAudio'
 
 interface LetterRevealProps {
@@ -17,74 +17,67 @@ const LETTER_PARAGRAPHS = [
 
 export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevealProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [typedLines, setTypedLines] = useState(0)
-  const openedRef = useRef(false)
+  const [typedLines, setTypedLines] = useState<number>(0)
 
+  // Relative time in Scene 5 (starts at 50000ms)
   const t = sceneTimeMs - 50000
-  const isComplete = typedLines >= LETTER_PARAGRAPHS.length
 
-  const handleOpen = useCallback(() => {
-    if (openedRef.current) return
-
-    openedRef.current = true
-    setIsOpen(true)
-    universeAudio.playLetterOpen()
-  }, [])
-
+  // Auto-open envelope smoothly after a brief 2.2-second pause in Scene 5 if user hasn't clicked
   useEffect(() => {
     if (isActive && t >= 2200 && !isOpen) {
       handleOpen()
     }
-  }, [isActive, t, isOpen, handleOpen])
+  }, [isActive, t, isOpen])
 
+  // Progressively reveal letter paragraphs
   useEffect(() => {
-    if (!isActive || !isOpen || isComplete) return
+    if (!isOpen) return
+    const interval = setInterval(() => {
+      setTypedLines(prev => {
+        if (prev < LETTER_PARAGRAPHS.length) {
+          return prev + 1
+        }
+        clearInterval(interval)
+        return prev
+      })
+    }, 900)
+    return () => clearInterval(interval)
+  }, [isOpen])
 
-    const interval = window.setInterval(() => {
-      setTypedLines(current => Math.min(current + 1, LETTER_PARAGRAPHS.length))
-    }, 850)
-
-    return () => window.clearInterval(interval)
-  }, [isActive, isOpen, isComplete])
-
-  useEffect(() => {
-    if (!isActive) {
-      openedRef.current = false
-      setIsOpen(false)
-      setTypedLines(0)
-    }
-  }, [isActive])
+  const handleOpen = () => {
+    if (isOpen) return
+    setIsOpen(true)
+    universeAudio.playLetterOpen()
+  }
 
   if (!isActive) return null
 
+  const isComplete = typedLines >= LETTER_PARAGRAPHS.length
+
   return (
     <div className={`letter-reveal-container ${isOpen ? 'is-opened' : ''}`}>
+      {/* 3D Envelope Container */}
       <div
         className="vintage-envelope-3d"
         onClick={handleOpen}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            handleOpen()
-          }
-        }}
         role="button"
         tabIndex={0}
         aria-label="Nhấn để mở lá thư tri ân"
-        aria-expanded={isOpen}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleOpen() }}
       >
+        {/* Envelope Back Flap */}
         <div className="env-back" />
 
+        {/* Parchment Letter Paper Sliding Out */}
         <div className={`env-letter-paper ${isOpen ? 'slid-out' : ''}`}>
           <div className="paper-crest">❦ 9H2 ❦</div>
-
           <div className="letter-body">
             {LETTER_PARAGRAPHS.map((para, i) => (
               <p
                 key={i}
                 className={`letter-line ${i < typedLines ? 'visible' : ''} ${i === 0 ? 'salutation' : ''} ${i === 4 ? 'signature' : ''}`}
                 style={{
-                  transitionDelay: `${i * 120}ms`,
+                  transitionDelay: `${i * 180}ms`,
                   whiteSpace: 'pre-line'
                 }}
               >
@@ -98,26 +91,29 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
           </div>
         </div>
 
+        {/* Envelope Front Pocket & Seal */}
         <div className="env-pocket" />
         <div className={`env-flap ${isOpen ? 'flap-open' : ''}`} />
 
+        {/* Antique Gold Wax Seal with 9H2 Crest */}
         <div
           className={`wax-seal-crest ${isOpen ? 'seal-broken' : ''}`}
           title="Ấn sáp niêm phong 9H2"
-          aria-hidden="true"
         >
           <div className="seal-outer-rim" />
           <div className="seal-monogram">9H2</div>
         </div>
       </div>
 
+      {/* Gentle Tap Hint prior to opening */}
       {!isOpen && (
         <div className="open-envelope-hint">
           <p className="hint-text">Chạm vào lá thư để mở</p>
-          <span className="hint-sparkle" aria-hidden="true">✦</span>
+          <span className="hint-sparkle">✦</span>
         </div>
       )}
 
+      {/* Final Grand Message & Enter Button */}
       {isOpen && (
         <div className={`enter-action-wrapper ${isComplete ? 'show-enter' : ''}`}>
           <div className="closing-quote-box">
@@ -129,8 +125,7 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
             type="button"
             className="enter-memories-btn"
             onClick={onEnterSite}
-            disabled={!isComplete}
-            aria-label="Enter our memories"
+            autoFocus
           >
             <span className="btn-starlight" aria-hidden="true">✦</span>
             <span className="btn-label">ENTER OUR MEMORIES</span>

@@ -13,18 +13,12 @@ interface UniverseIntroProps {
 }
 
 const TOTAL_TIMELINE_MS = 60000
-const UI_UPDATE_INTERVAL = 50
-const PROGRESS_UPDATE_INTERVAL = 100
 
 export function UniverseIntro({ onComplete }: UniverseIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<StarEngine | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
-  const lastUiUpdateRef = useRef(0)
-  const lastProgressUpdateRef = useRef(0)
-  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isExitingRef = useRef(false)
 
   const [currentScene, setCurrentScene] = useState<UniverseScene>('THE_VOID')
   const [sceneElapsedMs, setSceneElapsedMs] = useState(0)
@@ -32,45 +26,44 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
   const [isWarpingOut, setIsWarpingOut] = useState(false)
   const [progressPercent, setProgressPercent] = useState(0)
 
-  const reducedMotion = useRef(false)
+  const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  useEffect(() => {
-    reducedMotion.current =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  }, [])
-
+  // Transition to main site
   const handleEnterMainSite = useCallback(() => {
-    if (isExitingRef.current) return
-
-    isExitingRef.current = true
     setIsWarpingOut(true)
-
-    exitTimerRef.current = setTimeout(() => {
+    setTimeout(() => {
       universeAudio.stop()
       onComplete()
-    }, reducedMotion.current ? 0 : 1200)
-  }, [onComplete])
+    }, reducedMotion ? 0 : 1200)
+  }, [onComplete, reducedMotion])
 
-  const handleToggleSound = useCallback(() => {
+  // Audio Toggle
+  const handleToggleSound = () => {
+    // Ensure audio starts on first click if not already
     universeAudio.start().catch(() => {})
     const muted = universeAudio.toggleMute()
     setIsMuted(muted)
-  }, [])
+  }
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    engineRef.current?.setPointer(e.clientX, e.clientY, e.buttons > 0)
-  }, [])
+  // Pointer Interaction
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!engineRef.current) return
+    engineRef.current.setPointer(e.clientX, e.clientY, e.buttons > 0)
+  }
 
-  const handlePointerLeave = useCallback(() => {
-    engineRef.current?.clearPointer()
-  }, [])
+  const handlePointerLeave = () => {
+    if (!engineRef.current) return
+    engineRef.current.clearPointer()
+  }
 
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     universeAudio.start().catch(() => {})
-    engineRef.current?.setPointer(e.clientX, e.clientY, true)
-  }, [])
+    if (engineRef.current) {
+      engineRef.current.setPointer(e.clientX, e.clientY, true)
+    }
+  }
 
+  // Initialize Canvas & Master Timeline Loop
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -78,84 +71,53 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     const engine = new StarEngine(canvas)
     engineRef.current = engine
 
-    let frameId = 0
-    let isVisible = !document.hidden
-
-    const getScene = (elapsed: number): UniverseScene => {
-      if (elapsed < 10000) return 'THE_VOID'
-      if (elapsed < 25000) return 'CONNECT_THE_STARS'
-      if (elapsed < 40000) return 'OUR_CONSTELLATION'
-      if (elapsed < 50000) return 'THE_BRIGHTEST_STAR'
-      return 'A_LETTER_FOR_YOU'
+    const handleResize = () => {
+      engine.resize()
     }
+    window.addEventListener('resize', handleResize)
 
-    const handleResize = () => engine.resize()
-
+    // Master RAF Loop
     const loop = (timestamp: number) => {
-      if (!isVisible || isExitingRef.current) return
-
       if (startTimeRef.current === null) {
         startTimeRef.current = timestamp
       }
 
       const elapsed = timestamp - startTimeRef.current
-      const scene = getScene(elapsed)
+      setSceneElapsedMs(elapsed)
+      setProgressPercent(Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100))
 
-      if (timestamp - lastUiUpdateRef.current >= UI_UPDATE_INTERVAL) {
-        lastUiUpdateRef.current = timestamp
-        setSceneElapsedMs(elapsed)
-
-        setCurrentScene(prev => (
-          prev === scene || prev === 'WARP_TRANSITION' ? prev : scene
-        ))
+      // Determine current scene from timeline
+      let scene: UniverseScene = 'THE_VOID'
+      if (elapsed < 10000) {
+        scene = 'THE_VOID'
+      } else if (elapsed < 25000) {
+        scene = 'CONNECT_THE_STARS'
+      } else if (elapsed < 40000) {
+        scene = 'OUR_CONSTELLATION'
+      } else if (elapsed < 50000) {
+        scene = 'THE_BRIGHTEST_STAR'
+      } else {
+        scene = 'A_LETTER_FOR_YOU'
       }
 
-      if (timestamp - lastProgressUpdateRef.current >= PROGRESS_UPDATE_INTERVAL) {
-        lastProgressUpdateRef.current = timestamp
-        setProgressPercent(Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100))
-      }
+      setCurrentScene(prev => (prev !== scene && prev !== 'WARP_TRANSITION' ? scene : prev))
 
+      // Render star engine
       engine.render(timestamp, elapsed, scene)
-      frameId = requestAnimationFrame(loop)
-      animFrameRef.current = frameId
+
+      animFrameRef.current = requestAnimationFrame(loop)
     }
 
-    const startLoop = () => {
-      if (frameId) cancelAnimationFrame(frameId)
-      frameId = requestAnimationFrame(loop)
-      animFrameRef.current = frameId
-    }
-
-    const handleVisibilityChange = () => {
-      isVisible = !document.hidden
-
-      if (isVisible) {
-        startLoop()
-      } else if (frameId) {
-        cancelAnimationFrame(frameId)
-        frameId = 0
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    startLoop()
+    animFrameRef.current = requestAnimationFrame(loop)
 
     return () => {
-      if (frameId) cancelAnimationFrame(frameId)
-      if (exitTimerRef.current) clearTimeout(exitTimerRef.current)
-
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
       window.removeEventListener('resize', handleResize)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-
       engine.destroy()
-      engineRef.current = null
-      startTimeRef.current = null
-      lastUiUpdateRef.current = 0
-      lastProgressUpdateRef.current = 0
     }
   }, [])
 
+  // Subtitle/quote text based on current scene
   const getSceneQuote = () => {
     switch (currentScene) {
       case 'THE_VOID':
@@ -194,9 +156,13 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       role="region"
       aria-label="Cinematic Intro: The Universe of 9H2"
     >
+      {/* 2D Star & Math Formula Canvas */}
       <canvas ref={canvasRef} className="star-canvas" aria-hidden="true" />
+
+      {/* Atmospheric Vignette */}
       <div className="universe-vignette" aria-hidden="true" />
 
+      {/* Top Bar Controls */}
       <header className="universe-top-bar">
         <div className="universe-badge">
           <span className="star-icon" aria-hidden="true">✦</span>
@@ -204,16 +170,18 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
 
         <div className="universe-controls-group">
+          {/* Sound Toggle Button */}
           <button
             type="button"
             className="btn-cosmic btn-sound-toggle"
             onClick={handleToggleSound}
             aria-label={isMuted ? 'Bật âm thanh vũ trụ' : 'Tắt âm thanh'}
           >
-            <span aria-hidden="true">{isMuted ? '🔇' : '✨'}</span>
+            <span>{isMuted ? '🔇' : '✨'}</span>
             <span>{isMuted ? 'Âm thanh: Tắt' : 'Âm thanh: Bật'}</span>
           </button>
 
+          {/* Skip Intro Button */}
           <button
             type="button"
             className="btn-cosmic btn-skip-intro"
@@ -225,6 +193,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
       </header>
 
+      {/* Dynamic Scene Quotes & Subtitles */}
       {quoteData && (
         <div className="universe-subtitle-layer" key={currentScene}>
           <span className="cosmic-quote-kicker">{quoteData.kicker}</span>
@@ -232,27 +201,32 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
       )}
 
+      {/* Scene 02: Sacred Geometric Constellations */}
       <GeometryConstellation
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'CONNECT_THE_STARS'}
       />
 
+      {/* Scene 03: Floating Class Polaroid Memories */}
       <MemoryPhotos
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'OUR_CONSTELLATION' || currentScene === 'THE_BRIGHTEST_STAR'}
       />
 
+      {/* Scene 04: The Brightest Guiding Star */}
       <CentralStar
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'THE_BRIGHTEST_STAR' || currentScene === 'A_LETTER_FOR_YOU'}
       />
 
+      {/* Scene 05: The Envelope & Letter Reveal */}
       <LetterReveal
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'A_LETTER_FOR_YOU'}
         onEnterSite={handleEnterMainSite}
       />
 
+      {/* Bottom Progress Bar */}
       <div className="universe-progress-bar" aria-hidden="true">
         <div
           className="universe-progress-fill"
@@ -260,6 +234,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         />
       </div>
 
+      {/* Screen Reader Accessible Content */}
       <div className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
         <h2>Thông điệp tri ân ngày 20/11 từ lớp 9H2</h2>
         <p>Gửi cô giáo chủ nhiệm kính mến từ những vì sao nhỏ lớp 9H2. Chúng em cảm ơn cô vì đã đồng hành cùng chúng em.</p>
