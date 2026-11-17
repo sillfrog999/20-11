@@ -19,17 +19,14 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
   const [isOpen, setIsOpen] = useState(false)
   const [typedLines, setTypedLines] = useState<number>(0)
 
-  // Thời gian bắt đầu Cảnh 5 (từ giây thứ 50)
   const t = sceneTimeMs - 50000
 
-  // Tự động mở thư sau 2.2 giây nếu người xem chưa bấm
   useEffect(() => {
     if (isActive && t >= 2200 && !isOpen) {
       handleOpen()
     }
   }, [isActive, t, isOpen])
 
-  // Hiệu ứng lần lượt từng đoạn văn xuất hiện mượt mà
   useEffect(() => {
     if (!isOpen) return
     const interval = setInterval(() => {
@@ -56,7 +53,6 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
 
   return (
     <div className={`letter-reveal-container ${isOpen ? 'is-opened' : ''}`}>
-      {/* Khối phong bì cổ điển 3D */}
       <div
         className="vintage-envelope-3d"
         onClick={handleOpen}
@@ -67,7 +63,6 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
       >
         <div className="env-back" />
 
-        {/* Giấy da trượt lên nhẹ nhàng */}
         <div className={`env-letter-paper ${isOpen ? 'slid-out' : ''}`}>
           <div className="paper-crest">❦ GỬI NGƯỜI CÔ KÍNH YÊU • TẬP THỂ 9H2 ❦</div>
           <div className="letter-body">
@@ -88,12 +83,30 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
           <div className="letter-decor-footer" aria-hidden="true">
             <span className="star-divider">✦ ✦ ✦</span>
           </div>
+
+          {/* Đặt trong giấy thư để loại bỏ hoàn toàn việc đè lấn */}
+          <div className={`enter-action-wrapper ${isComplete ? 'show-enter' : ''}`}>
+            <div className="closing-quote-box">
+              <p className="quote-main">"Mỗi vì sao đều mang một ánh sáng riêng."</p>
+              <p className="quote-sub">"Cảm ơn cô vì đã nâng niu và giúp chúng em tỏa sáng."</p>
+            </div>
+
+            <button
+              type="button"
+              className="enter-memories-btn"
+              onClick={onEnterSite}
+              autoFocus
+            >
+              <span className="btn-starlight" aria-hidden="true">✦</span>
+              <span className="btn-label">BƯỚC VÀO MIỀN KÝ ỨC CỦA CHÚNG EM</span>
+              <span className="btn-arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
 
         <div className="env-pocket" />
         <div className={`env-flap ${isOpen ? 'flap-open' : ''}`} />
 
-        {/* Con dấu sáp hoàng kim khắc 9H2 */}
         <div
           className={`wax-seal-crest ${isOpen ? 'seal-broken' : ''}`}
           title="Dấu sáp Lớp 9H2"
@@ -103,32 +116,10 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
         </div>
       </div>
 
-      {/* Gợi ý mở phong bì */}
       {!isOpen && (
         <div className="open-envelope-hint">
           <p className="hint-text">Chạm nhẹ để mở lá thư của chúng em</p>
           <span className="hint-sparkle">✦</span>
-        </div>
-      )}
-
-      {/* Thông điệp kết và nút bước vào website */}
-      {isOpen && (
-        <div className={`enter-action-wrapper ${isComplete ? 'show-enter' : ''}`}>
-          <div className="closing-quote-box">
-            <p className="quote-main">"Mỗi vì sao đều mang một ánh sáng riêng."</p>
-            <p className="quote-sub">"Cảm ơn cô vì đã nâng niu và giúp chúng em tỏa sáng."</p>
-          </div>
-
-          <button
-            type="button"
-            className="enter-memories-btn"
-            onClick={onEnterSite}
-            autoFocus
-          >
-            <span className="btn-starlight" aria-hidden="true">✦</span>
-            <span className="btn-label">BƯỚC VÀO MIỀN KÝ ỨC CỦA CHÚNG EM</span>
-            <span className="btn-arrow" aria-hidden="true">→</span>
-          </button>
         </div>
       )}
     </div>
