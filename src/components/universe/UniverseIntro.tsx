@@ -28,6 +28,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
 
   const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  // Transition to main site
   const handleEnterMainSite = useCallback(() => {
     setIsWarpingOut(true)
     setTimeout(() => {
@@ -36,12 +37,15 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     }, reducedMotion ? 0 : 1200)
   }, [onComplete, reducedMotion])
 
+  // Audio Toggle
   const handleToggleSound = () => {
+    // Ensure audio starts on first click if not already
     universeAudio.start().catch(() => {})
     const muted = universeAudio.toggleMute()
     setIsMuted(muted)
   }
 
+  // Pointer Interaction
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!engineRef.current) return
     engineRef.current.setPointer(e.clientX, e.clientY, e.buttons > 0)
@@ -59,6 +63,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     }
   }
 
+  // Initialize Canvas & Master Timeline Loop
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -66,24 +71,40 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     const engine = new StarEngine(canvas)
     engineRef.current = engine
 
-    const handleResize = () => engine.resize()
+    const handleResize = () => {
+      engine.resize()
+    }
     window.addEventListener('resize', handleResize)
 
+    // Master RAF Loop
     const loop = (timestamp: number) => {
-      if (startTimeRef.current === null) startTimeRef.current = timestamp
+      if (startTimeRef.current === null) {
+        startTimeRef.current = timestamp
+      }
+
       const elapsed = timestamp - startTimeRef.current
       setSceneElapsedMs(elapsed)
       setProgressPercent(Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100))
 
+      // Determine current scene from timeline
       let scene: UniverseScene = 'THE_VOID'
-      if (elapsed < 10000) scene = 'THE_VOID'
-      else if (elapsed < 25000) scene = 'CONNECT_THE_STARS'
-      else if (elapsed < 40000) scene = 'OUR_CONSTELLATION'
-      else if (elapsed < 50000) scene = 'THE_BRIGHTEST_STAR'
-      else scene = 'A_LETTER_FOR_YOU'
+      if (elapsed < 10000) {
+        scene = 'THE_VOID'
+      } else if (elapsed < 25000) {
+        scene = 'CONNECT_THE_STARS'
+      } else if (elapsed < 40000) {
+        scene = 'OUR_CONSTELLATION'
+      } else if (elapsed < 50000) {
+        scene = 'THE_BRIGHTEST_STAR'
+      } else {
+        scene = 'A_LETTER_FOR_YOU'
+      }
 
       setCurrentScene(prev => (prev !== scene && prev !== 'WARP_TRANSITION' ? scene : prev))
+
+      // Render star engine
       engine.render(timestamp, elapsed, scene)
+
       animFrameRef.current = requestAnimationFrame(loop)
     }
 
@@ -96,6 +117,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     }
   }, [])
 
+  // Subtitle/quote text based on current scene (Vietnamese, warm & touching)
   const getSceneQuote = () => {
     switch (currentScene) {
       case 'THE_VOID':
@@ -133,10 +155,22 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       onPointerDown={handlePointerDown}
       role="region"
       aria-label="Cinematic Intro: The Universe of 9H2"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        backgroundColor: '#080817',
+        background: 'radial-gradient(circle at 50% 50%, #15112F 0%, #080817 100%)',
+        overflow: 'hidden',
+      }}
     >
+      {/* 2D Star & Math Formula Canvas */}
       <canvas ref={canvasRef} className="star-canvas" aria-hidden="true" />
+
+      {/* Atmospheric Vignette */}
       <div className="universe-vignette" aria-hidden="true" />
 
+      {/* Top Bar Controls */}
       <header className="universe-top-bar">
         <div className="universe-badge">
           <span className="star-icon" aria-hidden="true">✦</span>
@@ -144,6 +178,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
 
         <div className="universe-controls-group">
+          {/* Sound Toggle Button */}
           <button
             type="button"
             className="btn-cosmic btn-sound-toggle"
@@ -154,6 +189,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
             <span>{isMuted ? 'Âm thanh: Tắt' : 'Âm thanh: Bật'}</span>
           </button>
 
+          {/* Skip Intro Button */}
           <button
             type="button"
             className="btn-cosmic btn-skip-intro"
@@ -165,6 +201,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
       </header>
 
+      {/* Dynamic Scene Quotes & Subtitles */}
       {quoteData && (
         <div className="universe-subtitle-layer" key={currentScene}>
           <span className="cosmic-quote-kicker">{quoteData.kicker}</span>
@@ -172,32 +209,43 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         </div>
       )}
 
+      {/* Scene 02: Sacred Geometric Constellations */}
       <GeometryConstellation
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'CONNECT_THE_STARS'}
       />
 
+      {/* Scene 03: Floating Class Polaroid Memories */}
       <MemoryPhotos
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'OUR_CONSTELLATION' || currentScene === 'THE_BRIGHTEST_STAR'}
       />
 
+      {/* Scene 04: The Brightest Guiding Star */}
       <CentralStar
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'THE_BRIGHTEST_STAR' || currentScene === 'A_LETTER_FOR_YOU'}
       />
 
+      {/* Scene 05: The Envelope & Letter Reveal */}
       <LetterReveal
         sceneTimeMs={sceneElapsedMs}
         isActive={currentScene === 'A_LETTER_FOR_YOU'}
         onEnterSite={handleEnterMainSite}
       />
 
+      {/* Bottom Progress Bar */}
       <div className="universe-progress-bar" aria-hidden="true">
         <div
           className="universe-progress-fill"
           style={{ width: `${progressPercent}%` }}
         />
+      </div>
+
+      {/* Screen Reader Accessible Content */}
+      <div className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+        <h2>Thông điệp tri ân ngày 20/11 từ lớp 9H2</h2>
+        <p>Gửi cô giáo chủ nhiệm kính mến từ những vì sao nhỏ lớp 9H2. Chúng em cảm ơn cô vì đã đồng hành cùng chúng em.</p>
       </div>
     </div>
   )
