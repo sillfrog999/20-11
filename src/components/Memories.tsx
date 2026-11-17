@@ -1,162 +1,466 @@
-import { useEffect, useState, FormEvent } from 'react'
-import { supabase, configured } from '../lib/supabase'
-import { upload, deviceId, Kind } from '../lib/media'
-import { Media, MediaPicker } from './Media'
-import { ReportButton } from './Report'
+import { useState, useEffect, FormEvent } from 'react'
+import { supabase } from '../lib/supabase'
+import { Memory } from '../types'
+import { Lightbox } from './Lightbox'
+import { uploadMediaFile } from '../lib/storage'
 
-type Mem = { id: string; kind: 'memory' | 'confession'; title: string; content: string | null; author_name: string | null; media_path: string | null; media_type: Kind | null; likes: number; comments: number }
-type Cm = { id: string; author_name: string; content: string }
-const PAGE = 9
-const likedSet = () => { try { return new Set<string>(JSON.parse(localStorage.getItem('liked') || '[]')) } catch { return new Set<string>() } }
-
-function Viewer({ m, onClose, onLike }: { m: Mem; onClose: () => void; onLike: (id: string, d: number) => void }) {
-  const [cs, setCs] = useState<Cm[]>([])
-  const [name, setName] = useState(''); const [t, setT] = useState(''); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState('')
-  const [isLiked, setIsLiked] = useState(() => likedSet().has(m.id))
-  const loadC = async () => {
-    const { data } = await supabase!.from('comments_public').select('id,author_name,content').eq('memory_id', m.id).order('created_at').limit(100)
-    setCs((data as Cm[]) ?? [])
+// Initial curated scrapbook moments of Class 9H2
+const DEFAULT_MEMORIES: Memory[] = [
+  {
+    id: 'mem-1',
+    title: 'Tiết Toán Hình Hôm Đó',
+    caption: 'Bảng đầy những hình chóp, hình nón và góc lượng giác. Cô vừa vẽ đường cao vừa hỏi "Mấy đứa có thấy cái đỉnh nó cao bằng ước mơ của lớp không?". Cả lớp cười lăn lộn.',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Minh Anh (Lớp trưởng)',
+    tag: 'Tiết học',
+    created_at: '2026-10-15T08:30:00Z',
+    sort_order: 1
+  },
+  {
+    id: 'mem-2',
+    title: 'Bất Ngờ Sinh Nhật Cô',
+    caption: 'Giả vờ cãi nhau to trong giờ sinh hoạt lớp để cô lo lắng chạy vào, rồi bất ngờ òa lên chúc mừng sinh nhật cô cùng chiếc bánh kem tự làm vụng về. Cô rưng rưng nước mắt.',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Tập thể 9H2',
+    tag: 'Kỷ niệm đẹp',
+    created_at: '2026-10-20T14:15:00Z',
+    sort_order: 2
+  },
+  {
+    id: 'mem-3',
+    title: 'Giờ Ra Chơi Bất Ổn Của Tổ 2',
+    caption: 'Tổ 2 đem bánh tráng trộn ăn vụng bị cô bắt quả tang. Cô không phạt mà chỉ bảo: "Ăn xong nhớ dọn sạch kẻo kiến cắn bảng nha mấy bạn". Đáng yêu xỉu!',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Quân (Bàn 4)',
+    tag: 'Chuyện vui',
+    created_at: '2026-11-02T10:00:00Z',
+    sort_order: 3
+  },
+  {
+    id: 'mem-4',
+    title: 'Góc Cửa Sổ Mùa Thu 9H2',
+    caption: 'Nắng tháng 11 chiếu qua song cửa lớp học, trên bàn cô là bình hoa cúc nhỏ chúng em hái tặng. Một khoảng trời tuổi học trò bình yên.',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Hà Linh',
+    tag: 'Khoảnh khắc',
+    created_at: '2026-11-05T09:45:00Z',
+    sort_order: 4
+  },
+  {
+    id: 'mem-5',
+    title: 'Buổi Tập Văn Nghệ 20/11',
+    caption: 'Tiết mục múa của lớp tuy có đứa bước sai nhịp, có đứa quên động tác nhưng tinh thần cổ vũ thì rực lửa. Cô ngồi dưới chấm điểm mà cười toe toét.',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Ban Văn Thể',
+    tag: '20/11',
+    created_at: '2026-11-10T16:20:00Z',
+    sort_order: 5
+  },
+  {
+    id: 'mem-6',
+    title: 'Đóa Hồng Tươi Thắm Dành Cho Cô',
+    caption: 'Mỗi bông hoa là một tấm lòng, đại diện cho từng thành viên trong gia đình nhỏ 9H2 gửi đến cô chủ nhiệm kính mến.',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
+    author_name: 'Cả lớp 9H2',
+    tag: 'Tri ân',
+    created_at: '2026-11-14T11:00:00Z',
+    sort_order: 6
   }
+]
+
+export function Memories() {
+  const [memories, setMemories] = useState<Memory[]>(DEFAULT_MEMORIES)
+  const [activeFilter, setActiveFilter] = useState<'all' | 'image' | 'video'>('all')
+  const [selectedMemoryIndex, setSelectedMemoryIndex] = useState<number | null>(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+
+  // Upload Form State
+  const [title, setTitle] = useState('')
+  const [caption, setCaption] = useState('')
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image')
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [authorName, setAuthorName] = useState('')
+  const [tag, setTag] = useState('Khoảnh khắc')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadFeedback, setUploadFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  // Fetch memories from Supabase
+  const fetchMemories = async () => {
+    if (!supabase) return
+    const { data, error } = await supabase
+      .from('memories')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
+
+    if (!error && data && data.length > 0) {
+      setMemories(data)
+    }
+  }
+
   useEffect(() => {
-    loadC()
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    addEventListener('keydown', k); return () => removeEventListener('keydown', k)
+    fetchMemories()
   }, [])
-  const like = async () => {
-    const { data, error } = await supabase!.rpc('toggle_reaction', { p_memory: m.id, p_device: deviceId() })
-    if (error) return
-    const s = likedSet(); if (data) s.add(m.id); else s.delete(m.id)
-    try { localStorage.setItem('liked', JSON.stringify([...s])) } catch { /* ignore */ }
-    setIsLiked(!!data); onLike(m.id, data ? 1 : -1)
+
+  // Filter memories
+  const filteredMemories = memories.filter(m => {
+    if (activeFilter === 'all') return true
+    return m.media_type === activeFilter
+  })
+
+  // Handle file select
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setSelectedFile(file)
+      setUploadFeedback(null)
+
+      if (file.type.startsWith('image/')) {
+        setMediaType('image')
+        const reader = new FileReader()
+        reader.onload = ev => setFilePreview(ev.target?.result as string)
+        reader.readAsDataURL(file)
+      } else if (file.type.startsWith('video/')) {
+        setMediaType('video')
+        setFilePreview(URL.createObjectURL(file))
+      }
+    }
   }
-  const send = async (e: FormEvent) => {
+
+  // Handle upload submit
+  const handleUploadSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const content = t.trim()
-    if (busy || !content) return
-    setBusy(true); setMsg('')
-    const { error } = await supabase!.from('comments').insert({ memory_id: m.id, author_name: name.trim().slice(0, 60) || null, content: content.slice(0, 500) })
-    setBusy(false)
-    if (error) { setMsg('Không gửi được bình luận.'); return }
-    setT(''); loadC()
+    if (!title.trim() || !caption.trim()) {
+      setUploadFeedback({ ok: false, msg: 'Vui lòng điền tiêu đề và lời chú thích.' })
+      return
+    }
+
+    let finalUrl = mediaUrl.trim()
+
+    if (selectedFile) {
+      setIsUploading(true)
+      setUploadFeedback({ ok: true, msg: 'Đang tải tệp lên máy chủ...' })
+
+      const uploadRes = await uploadMediaFile(selectedFile, 'memories')
+      if (!uploadRes.success || !uploadRes.url) {
+        setIsUploading(false)
+        setUploadFeedback({ ok: false, msg: uploadRes.error || 'Tải tệp lên thất bại.' })
+        return
+      }
+      finalUrl = uploadRes.url
+    }
+
+    if (!finalUrl) {
+      setUploadFeedback({ ok: false, msg: 'Vui lòng chọn tệp ảnh/video hoặc dán đường dẫn URL trực tiếp.' })
+      return
+    }
+
+    setIsUploading(true)
+    const newMemory: Partial<Memory> = {
+      title: title.trim(),
+      caption: caption.trim(),
+      media_type: mediaType,
+      media_url: finalUrl,
+      author_name: authorName.trim() || 'Thành viên 9H2',
+      tag: tag.trim() || 'Khoảnh khắc',
+      sort_order: 0
+    }
+
+    if (supabase) {
+      const { error } = await supabase.from('memories').insert(newMemory)
+      if (error) {
+        setIsUploading(false)
+        setUploadFeedback({ ok: false, msg: `Lưu thất bại: ${error.message}` })
+        return
+      }
+      await fetchMemories()
+    } else {
+      // Local optimistic update
+      const localItem: Memory = {
+        ...newMemory,
+        id: `local-${Date.now()}`,
+        created_at: new Date().toISOString()
+      } as Memory
+      setMemories(prev => [localItem, ...prev])
+    }
+
+    setIsUploading(false)
+    setUploadFeedback({ ok: true, msg: '✨ Đã thêm kỷ niệm mới vào cuốn sổ lưu bút!' })
+    setTimeout(() => {
+      setShowUploadModal(false)
+      setTitle('')
+      setCaption('')
+      setMediaUrl('')
+      setSelectedFile(null)
+      setFilePreview(null)
+      setUploadFeedback(null)
+    }, 1200)
   }
+
   return (
-    <div className="modal" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="paper letter-read wide" onClick={e => e.stopPropagation()}>
-        {m.media_path && m.media_type && <Media path={m.media_path} type={m.media_type} />}
-        <h3>{m.title}</h3>
-        {m.content && <p style={{ whiteSpace: 'pre-wrap' }}>{m.content}</p>}
-        <em className="hand">— {m.author_name || 'Một học sinh 9H2'}</em>
-        <div className="row">
-          <button className="btn ghost" aria-pressed={isLiked} onClick={like}>{isLiked ? 'Đã thích' : 'Thích'} · {m.likes}</button>
-          <ReportButton type="memory" id={m.id} />
-          <button className="btn ghost" autoFocus onClick={onClose}>Đóng</button>
-        </div>
-        <h4>Bình luận ({cs.length})</h4>
-        <ul className="comments">
-          {cs.map(c => <li key={c.id}><strong>{c.author_name}</strong> <span style={{ whiteSpace: 'pre-wrap' }}>{c.content}</span> <ReportButton type="comment" id={c.id} /></li>)}
-          {!cs.length && <li className="empty">Chưa có bình luận.</li>}
-        </ul>
-        <form onSubmit={send} className="form flat">
-          <input aria-label="Tên (tuỳ chọn)" placeholder="Tên (tuỳ chọn)" maxLength={60} value={name} onChange={e => setName(e.target.value)} />
-          <textarea aria-label="Bình luận" placeholder="Viết bình luận vui vẻ, tôn trọng…" rows={2} maxLength={500} value={t} onChange={e => setT(e.target.value)} />
-          <button className="btn" disabled={busy || !t.trim()}>Gửi bình luận</button>
-          {msg && <p className="err" role="status">{msg}</p>}
-        </form>
+    <section id="memories" className="section memories-section">
+      <div className="section-head text-center">
+        <p className="kicker">PHẦN 02</p>
+        <h2 className="section-title">Our Little Chaos</h2>
+        <p className="section-subtitle">
+          Cuốn sổ lưu bút số ghi lại những khoảnh khắc đáng yêu, nghịch ngợm và khó quên của cả lớp cùng cô
+        </p>
       </div>
-    </div>
-  )
-}
 
-function MemForm({ kind, allowAnon }: { kind: Mem['kind']; allowAnon: boolean }) {
-  const conf = kind === 'confession'
-  const [title, setTitle] = useState(''); const [text, setText] = useState(''); const [name, setName] = useState(''); const [anon, setAnon] = useState(false)
-  const [agree, setAgree] = useState(false); const [file, setFile] = useState<File | null>(null); const [prog, setProg] = useState<number | null>(null)
-  const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null); const [hp, setHp] = useState('')
-  const isAnon = allowAnon && anon
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (busy || hp) return
-    const content = text.trim()
-    if (title.trim().length < 2) { setMsg({ ok: false, t: 'Tiêu đề cần ít nhất 2 ký tự.' }); return }
-    if (!content && !file) { setMsg({ ok: false, t: 'Hãy viết nội dung hoặc đính kèm ảnh/video.' }); return }
-    if (conf && !agree) { setMsg({ ok: false, t: 'Bạn cần đồng ý quy tắc của Confession Room.' }); return }
-    if (!supabase) { setMsg({ ok: false, t: 'Website chưa được cấu hình Supabase.' }); return }
-    if (!confirm('Gửi bài này để admin duyệt?')) return
-    setBusy(true); setMsg(null)
-    try {
-      let m: { path: string; type: Kind } | null = null
-      if (file) { setProg(0); m = await upload(file, setProg) }
-      const { error } = await supabase.from('memories').insert({
-        kind, title: title.trim().slice(0, 100), content: content || null, author_name: isAnon || !name.trim() ? null : name.trim().slice(0, 60),
-        is_anonymous: isAnon, media_path: m?.path ?? null, media_type: m?.type ?? null,
-      })
-      if (error) throw error
-      setTitle(''); setText(''); setFile(null); setAgree(false)
-      setMsg({ ok: true, t: 'Đã gửi! Bài sẽ hiện sau khi được duyệt.' })
-    } catch { setMsg({ ok: false, t: 'Gửi thất bại, bạn thử lại nhé.' }) }
-    finally { setBusy(false); setProg(null) }
-  }
-  return (
-    <form className="paper form" onSubmit={submit}>
-      {conf && <p className="rules">Kể chuyện vui về lớp, nhẹ nhàng và tôn trọng. Không chê bai, bêu xấu, nêu thông tin riêng tư của ai, và không xếp hạng hay gán biệt danh. Bài sẽ được admin duyệt trước khi hiện.</p>}
-      <input aria-label="Tiêu đề" placeholder={conf ? 'Tiêu đề câu chuyện' : 'Tiêu đề kỷ niệm'} maxLength={100} value={title} onChange={e => setTitle(e.target.value)} />
-      <textarea aria-label="Nội dung" placeholder="Kể lại câu chuyện…" rows={5} maxLength={2000} value={text} onChange={e => setText(e.target.value)} />
-      <MediaPicker allow={['image', 'video']} file={file} onFile={setFile} progress={prog} />
-      <input aria-label="Tên (tuỳ chọn)" placeholder="Tên (tuỳ chọn)" maxLength={60} disabled={isAnon} value={name} onChange={e => setName(e.target.value)} />
-      <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden value={hp} onChange={e => setHp(e.target.value)} />
-      {allowAnon && <label className="check"><input type="checkbox" checked={anon} onChange={e => setAnon(e.target.checked)} /> Đăng ẩn danh</label>}
-      {conf && <label className="check"><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /> Mình cam kết nội dung vui vẻ, tôn trọng, không nêu thông tin riêng tư.</label>}
-      <button className="btn" disabled={busy}>{busy ? (prog !== null ? `Đang tải lên ${prog}%` : 'Đang gửi…') : 'Gửi bài'}</button>
-      {msg && <p role="status" className={msg.ok ? 'ok' : 'err'}>{msg.t}</p>}
-    </form>
-  )
-}
-
-function Wall({ kind }: { kind: Mem['kind'] }) {
-  const [items, setItems] = useState<Mem[]>([])
-  const [more, setMore] = useState(true); const [loading, setLoading] = useState(true); const [err, setErr] = useState(false)
-  const [openId, setOpenId] = useState<string | null>(null)
-  const load = async (from: number) => {
-    if (!supabase) { setLoading(false); return }
-    const { data, error } = await supabase.from('memories_public').select('*').eq('kind', kind).order('created_at', { ascending: false }).range(from, from + PAGE - 1)
-    setLoading(false)
-    if (error || !data) { setErr(true); return }
-    setItems(p => (from ? [...p, ...(data as Mem[])] : (data as Mem[]))); setMore(data.length === PAGE)
-  }
-  useEffect(() => { load(0) }, [])
-  const cur = items.find(i => i.id === openId)
-  return (
-    <>
-      {err && <p className="err">Không tải được bài viết.</p>}
-      <div className="scrap">
-        {loading && configured && [0, 1, 2].map(i => <div key={i} className="polaroid skel" />)}
-        {!loading && !items.length && !err && configured && <p className="empty">Chưa có bài nào. Hãy chia sẻ điều đầu tiên nhé.</p>}
-        {items.map((m, i) => (
-          <button key={m.id} className="polaroid" style={{ ['--r' as string]: `${((i * 53) % 7) - 3}deg` }} onClick={() => setOpenId(m.id)}>
-            {m.media_path && m.media_type ? <Media path={m.media_path} type={m.media_type} thumb /> : <span className="clamp note">{m.content}</span>}
-            <strong>{m.title}</strong>
-            <span className="hand">{m.author_name || 'Ẩn danh'}</span>
-            <small>Thích {m.likes} · Bình luận {m.comments}</small>
+      {/* Toolbar & Filters */}
+      <div className="memories-toolbar">
+        <div className="filter-pill-group">
+          <button
+            type="button"
+            className={`filter-pill ${activeFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('all')}
+          >
+            Tất cả ({memories.length})
           </button>
-        ))}
-      </div>
-      {more && !loading && items.length > 0 && <button className="btn ghost" onClick={() => load(items.length)}>Xem thêm</button>}
-      {cur && <Viewer m={cur} onClose={() => setOpenId(null)} onLike={(id, d) => setItems(p => p.map(x => (x.id === id ? { ...x, likes: x.likes + d } : x)))} />}
-    </>
-  )
-}
+          <button
+            type="button"
+            className={`filter-pill ${activeFilter === 'image' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('image')}
+          >
+            📷 Hình ảnh ({memories.filter(m => m.media_type === 'image').length})
+          </button>
+          <button
+            type="button"
+            className={`filter-pill ${activeFilter === 'video' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('video')}
+          >
+            🎥 Video ({memories.filter(m => m.media_type === 'video').length})
+          </button>
+        </div>
 
-export default function Memories({ allowAnon }: { allowAnon: boolean }) {
-  const [kind, setKind] = useState<Mem['kind']>('memory')
-  return (
-    <section id="memories" className="section">
-      <p className="kicker">02</p><h2>Our Little Chaos</h2>
-      <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={kind === 'memory'} onClick={() => setKind('memory')}>Kỷ niệm</button>
-        <button role="tab" aria-selected={kind === 'confession'} onClick={() => setKind('confession')}>THE 9H2 CONFESSION ROOM</button>
+        <button
+          type="button"
+          className="btn primary-btn add-memory-btn"
+          onClick={() => setShowUploadModal(true)}
+        >
+          + Thêm kỷ niệm mới 📷
+        </button>
       </div>
-      <MemForm key={kind} kind={kind} allowAnon={allowAnon} />
-      <Wall key={'w' + kind} kind={kind} />
+
+      {/* Scrapbook Polaroid Grid */}
+      <div className="scrapbook-grid">
+        {filteredMemories.map((mem, index) => {
+          const rotation = ((index * 17) % 9) - 4
+          return (
+            <article
+              key={mem.id}
+              className="polaroid-card paper"
+              style={{ ['--r' as string]: `${rotation}deg` }}
+              onClick={() => setSelectedMemoryIndex(index)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelectedMemoryIndex(index)
+                }
+              }}
+              aria-label={`Xem kỷ niệm: ${mem.title}`}
+            >
+              <div className="washi-tape" aria-hidden="true" />
+              <div className="polaroid-media-container">
+                {mem.media_type === 'video' ? (
+                  <div className="video-thumb-wrap">
+                    <video src={mem.media_url} className="polaroid-img" muted playsInline />
+                    <span className="play-badge" aria-hidden="true">▶</span>
+                  </div>
+                ) : (
+                  <img
+                    src={mem.media_url}
+                    alt={mem.title}
+                    className="polaroid-img"
+                    loading="lazy"
+                  />
+                )}
+                <span className="media-tag">{mem.tag || 'Khoảnh khắc'}</span>
+              </div>
+
+              <div className="polaroid-caption">
+                <h3 className="memory-card-title">{mem.title}</h3>
+                <p className="memory-card-excerpt">{mem.caption}</p>
+                {mem.author_name && (
+                  <span className="memory-card-author hand">— {mem.author_name}</span>
+                )}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+
+      {/* Lightbox */}
+      {selectedMemoryIndex !== null && filteredMemories[selectedMemoryIndex] && (
+        <Lightbox
+          memory={filteredMemories[selectedMemoryIndex]}
+          onClose={() => setSelectedMemoryIndex(null)}
+          onPrev={() => setSelectedMemoryIndex(prev => (prev !== null && prev > 0 ? prev - 1 : prev))}
+          onNext={() => setSelectedMemoryIndex(prev => (prev !== null && prev < filteredMemories.length - 1 ? prev + 1 : prev))}
+          hasPrev={selectedMemoryIndex > 0}
+          hasNext={selectedMemoryIndex < filteredMemories.length - 1}
+        />
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="modal" role="dialog" aria-modal="true" onClick={() => setShowUploadModal(false)}>
+          <div className="paper modal-content upload-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Đóng Góp Kỷ Niệm 9H2</h3>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setShowUploadModal(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadSubmit} className="upload-form">
+              <div className="form-group">
+                <label className="field-label" htmlFor="mem-title">
+                  Tiêu đề kỷ niệm <span className="req">*</span>
+                </label>
+                <input
+                  id="mem-title"
+                  type="text"
+                  placeholder="Ví dụ: Giờ ôn thi Toán kịch tính, 20/11 năm ngoái..."
+                  value={title}
+                  maxLength={100}
+                  onChange={e => setTitle(e.target.value)}
+                  className="text-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="field-label" htmlFor="mem-caption">
+                  Lời chú thích / Kỷ niệm kèm theo <span className="req">*</span>
+                </label>
+                <textarea
+                  id="mem-caption"
+                  rows={4}
+                  placeholder="Kể lại cảm xúc, câu nói của cô hoặc chuyện hài hước xảy ra lúc đó…"
+                  value={caption}
+                  maxLength={800}
+                  onChange={e => setCaption(e.target.value)}
+                  className="text-area"
+                  required
+                />
+              </div>
+
+              <div className="form-row-2">
+                <div className="form-group">
+                  <label className="field-label" htmlFor="mem-author">
+                    Tên người gửi (hoặc tổ/nhóm)
+                  </label>
+                  <input
+                    id="mem-author"
+                    type="text"
+                    placeholder="Ví dụ: Tổ 1, Minh Trang, Cả lớp..."
+                    value={authorName}
+                    maxLength={50}
+                    onChange={e => setAuthorName(e.target.value)}
+                    className="text-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="field-label" htmlFor="mem-tag">
+                    Chủ đề
+                  </label>
+                  <select
+                    id="mem-tag"
+                    value={tag}
+                    onChange={e => setTag(e.target.value)}
+                    className="text-input"
+                  >
+                    <option value="Khoảnh khắc">Khoảnh khắc</option>
+                    <option value="Tiết học">Tiết học</option>
+                    <option value="Chuyện vui">Chuyện vui</option>
+                    <option value="Kỷ niệm đẹp">Kỷ niệm đẹp</option>
+                    <option value="20/11">20/11</option>
+                    <option value="Tri ân">Tri ân</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Media File Upload or URL */}
+              <div className="form-group file-upload-box">
+                <label className="field-label">Tải lên ảnh hoặc video</label>
+                <div className="file-drop-area">
+                  <input
+                    type="file"
+                    accept="image/*,video/mp4,video/webm"
+                    onChange={handleFileChange}
+                    id="mem-file-input"
+                    className="file-input-hidden"
+                  />
+                  <label htmlFor="mem-file-input" className="file-pick-btn">
+                    📁 {selectedFile ? `Đã chọn: ${selectedFile.name}` : 'Chọn ảnh hoặc video từ máy tính / điện thoại'}
+                  </label>
+                  <p className="file-hint">Hỗ trợ ảnh JPG, PNG, WEBP, GIF (dưới 20MB) hoặc video MP4 (dưới 50MB)</p>
+                </div>
+
+                {filePreview && (
+                  <div className="preview-container">
+                    <p className="preview-label">Xem trước:</p>
+                    {mediaType === 'image' ? (
+                      <img src={filePreview} alt="Preview" className="preview-thumb" />
+                    ) : (
+                      <video src={filePreview} controls className="preview-thumb" />
+                    )}
+                  </div>
+                )}
+
+                <div className="or-divider">hoặc nhập đường dẫn URL ảnh/video trực tiếp</div>
+                <input
+                  type="url"
+                  placeholder="https://example.com/anh-ky-niem.jpg"
+                  value={mediaUrl}
+                  onChange={e => setMediaUrl(e.target.value)}
+                  className="text-input"
+                />
+              </div>
+
+              {uploadFeedback && (
+                <div className={`feedback-alert ${uploadFeedback.ok ? 'success' : 'error'}`}>
+                  {uploadFeedback.msg}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn ghost-btn"
+                  onClick={() => setShowUploadModal(false)}
+                  disabled={isUploading}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn primary-btn"
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Đang lưu kỷ niệm…' : 'Lưu vào sổ lưu bút 📖'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
