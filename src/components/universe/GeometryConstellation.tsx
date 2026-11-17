@@ -231,6 +231,12 @@ export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstel
       angleX += 0.007
       angleY += 0.009
 
+      // Scene 2 timeline: 10000ms to 25000ms (15 seconds total)
+      // Segment 1: Triangle (10s – 13.5s)
+      // Segment 2: Tetrahedron (13.5s – 17.5s)
+      // Segment 3: Sphere (17.5s – 21.5s)
+      // Segment 4: Infinity (21.5s – 25s)
+
       const t = sceneTimeMs
 
       // Shape 1: Triangle
