@@ -6,11 +6,35 @@ import { ReportModal } from './ReportModal'
 const INITIAL_CONFESSIONS: Confession[] = [
   {
     id: 'conf-1',
-    pen_name: 'test',
-    category: 'test',
-    content: 'test',
+    pen_name: 'Một mầm non sợ Toán hình',
+    category: 'Chuyện giờ Toán',
+    content: 'Có hôm cô gọi lên bảng chữa bài hình không gian, em run quá vẽ luôn cái hình chóp lệch hẳn sang một bên. Cô bảo: "Vẽ cái đỉnh thế này thì gió thổi một cái là đổ mất tiêu!". Lúc đó quê một cục nhưng nhớ mãi lời cô chữa.',
     status: 'approved',
     created_at: '2026-11-01T10:00:00Z',
+  },
+  {
+    id: 'conf-2',
+    pen_name: 'Tổ 3 bí ẩn',
+    category: 'Ăn vụng thần sầu',
+    content: 'Thật ra hôm cô bảo "Cô ngửi thấy mùi ổi ở đâu đây nhé", chính là tổ chúng em đang lén chấm muối ớt dưới ngăn bàn. Sau hôm đó cả tổ thề là không dám mang đồ ăn vào tiết cô nữa, sợ cô vừa buồn vừa đói!',
+    status: 'approved',
+    created_at: '2026-11-04T15:20:00Z',
+  },
+  {
+    id: 'conf-3',
+    pen_name: 'Chiến thần bàn cuối',
+    category: 'Lời thú tội chân thành',
+    content: 'Đôi lúc cô quát to vì lớp mất trật tự, em cũng thấy hơi sợ. Nhưng khi nhìn thấy mắt cô đỏ và giọng khản đặc sau 4 tiết liền, em mới thấy thương cô vô cùng. Cảm ơn cô vì đã không bao giờ bỏ cuộc với lớp chúng em.',
+    status: 'approved',
+    created_at: '2026-11-08T18:40:00Z',
+  },
+  {
+    id: 'conf-4',
+    pen_name: 'Cựu học sinh ngủ gật',
+    category: 'Bí mật lớp học',
+    content: 'Có lần em ngủ gật trong giờ, bị cô gõ thước lên bàn. Em giật mình đứng dậy hô "Dạ có em!". Cả lớp cười ầm lên, cô cũng bật cười rồi đưa cho em cốc nước bảo ra rửa mặt cho tỉnh. Khoảnh khắc ấy ấm áp đến tận bây giờ.',
+    status: 'approved',
+    created_at: '2026-11-12T09:15:00Z',
   }
 ]
 
@@ -38,7 +62,7 @@ export function ConfessionRoom() {
 
   // Form state
   const [penName, setPenName] = useState('')
-  const [category, setCategory] = useState('?')
+  const [category, setCategory] = useState('Chuyện giờ Toán')
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; text: string } | null>(null)

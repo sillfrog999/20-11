@@ -153,18 +153,13 @@ export function Greetings() {
       author_name: isAnonymous ? null : name.trim().slice(0, 60),
       is_anonymous: isAnonymous,
       content: trimmedContent,
+      status: 'pending',
     })
 
     setIsSubmitting(false)
 
     if (error) {
-      console.error('Lỗi gửi lời chúc Supabase:', error)
-      setFeedback({
-        ok: false,
-        message: error.message
-          ? `Gửi thất bại: ${error.message}`
-          : 'Gửi thất bại. Vui lòng kiểm tra lại kết nối Supabase và thử lại.'
-      })
+      setFeedback({ ok: false, message: 'Gửi thất bại. Vui lòng kiểm tra lại kết nối và thử lại.' })
     } else {
       setContent('')
       setName('')
@@ -256,7 +251,7 @@ export function Greetings() {
     <section id="messages" className="section messages-section">
       <div className="section-head text-center">
         <p className="kicker">PHẦN 01</p>
-        <h2 className="section-title">Lời Yêu Thương Từ Trái Tim</h2>
+        <h2 className="section-title">Messages from Our Hearts</h2>
         <p className="section-subtitle">
           Những dòng tâm tình mộc mạc và lời chúc chân thành nhất của tập thể 9H2 gửi đến người cô kính yêu
         </p>
