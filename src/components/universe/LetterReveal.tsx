@@ -8,25 +8,28 @@ interface LetterRevealProps {
 }
 
 const LETTER_PARAGRAPHS = [
-  'Kính gửi Cô giáo kính yêu của chúng em,',
-  'Từ những vì sao nhỏ còn ngây ngô vụng dại của tập thể 9H2, chúng em xin gửi đến cô lời cảm ơn chân thành và sâu sắc nhất vì đã luôn là bến đỗ bình yên, là người đồng hành dịu dàng trong suốt năm tháng thanh xuân của chúng em.',
-  'Từng bài học cô dạy, từng lời nhắc nhở ân cần và từng ánh mắt bao dung của cô đều đã hóa thành những vì tinh tú rạng ngời trong vũ trụ ký ức của lớp mình.',
-  'Nhân ngày Nhà giáo Việt Nam 20.11, chúng em kính chúc cô luôn ngập tràn niềm vui, nhiều sức khỏe và mãi giữ trọn nụ cười ấm áp cùng ngọn lửa nhiệt huyết bên các thế hệ học trò.',
-  'Với trọn vẹn yêu thương và lòng biết ơn sâu sắc,\nTập thể Lớp 9H2 gửi tặng Cô.'
+  'Dear Teacher,',
+  'From the little stars of class 9H2, we want to thank you for being a part of our journey.',
+  'Every lesson, every memory, and every moment has become a part of our universe.',
+  'Happy Vietnamese Teachers\' Day — 20.11.',
+  'With love,\nClass 9H2.'
 ]
 
 export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevealProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [typedLines, setTypedLines] = useState<number>(0)
 
+  // Relative time in Scene 5 (starts at 50000ms)
   const t = sceneTimeMs - 50000
 
+  // Auto-open envelope smoothly after a brief 2.2-second pause in Scene 5 if user hasn't clicked
   useEffect(() => {
     if (isActive && t >= 2200 && !isOpen) {
       handleOpen()
     }
   }, [isActive, t, isOpen])
 
+  // Progressively reveal letter paragraphs
   useEffect(() => {
     if (!isOpen) return
     const interval = setInterval(() => {
@@ -53,6 +56,7 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
 
   return (
     <div className={`letter-reveal-container ${isOpen ? 'is-opened' : ''}`}>
+      {/* 3D Envelope Container */}
       <div
         className="vintage-envelope-3d"
         onClick={handleOpen}
@@ -61,10 +65,12 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
         aria-label="Nhấn để mở lá thư tri ân"
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleOpen() }}
       >
+        {/* Envelope Back Flap */}
         <div className="env-back" />
 
+        {/* Parchment Letter Paper Sliding Out */}
         <div className={`env-letter-paper ${isOpen ? 'slid-out' : ''}`}>
-          <div className="paper-crest">❦ GỬI NGƯỜI CÔ KÍNH YÊU • TẬP THỂ 9H2 ❦</div>
+          <div className="paper-crest">❦ 9H2 ❦</div>
           <div className="letter-body">
             {LETTER_PARAGRAPHS.map((para, i) => (
               <p
@@ -83,43 +89,48 @@ export function LetterReveal({ sceneTimeMs, isActive, onEnterSite }: LetterRevea
           <div className="letter-decor-footer" aria-hidden="true">
             <span className="star-divider">✦ ✦ ✦</span>
           </div>
-
-          {/* Đặt trong giấy thư để loại bỏ hoàn toàn việc đè lấn */}
-          <div className={`enter-action-wrapper ${isComplete ? 'show-enter' : ''}`}>
-            <div className="closing-quote-box">
-              <p className="quote-main">"Mỗi vì sao đều mang một ánh sáng riêng."</p>
-              <p className="quote-sub">"Cảm ơn cô vì đã nâng niu và giúp chúng em tỏa sáng."</p>
-            </div>
-
-            <button
-              type="button"
-              className="enter-memories-btn"
-              onClick={onEnterSite}
-              autoFocus
-            >
-              <span className="btn-starlight" aria-hidden="true">✦</span>
-              <span className="btn-label">BƯỚC VÀO MIỀN KÝ ỨC CỦA CHÚNG EM</span>
-              <span className="btn-arrow" aria-hidden="true">→</span>
-            </button>
-          </div>
         </div>
 
+        {/* Envelope Front Pocket & Seal */}
         <div className="env-pocket" />
         <div className={`env-flap ${isOpen ? 'flap-open' : ''}`} />
 
+        {/* Antique Gold Wax Seal with 9H2 Crest */}
         <div
           className={`wax-seal-crest ${isOpen ? 'seal-broken' : ''}`}
-          title="Dấu sáp Lớp 9H2"
+          title="Ấn sáp niêm phong 9H2"
         >
           <div className="seal-outer-rim" />
           <div className="seal-monogram">9H2</div>
         </div>
       </div>
 
+      {/* Gentle Tap Hint prior to opening */}
       {!isOpen && (
         <div className="open-envelope-hint">
-          <p className="hint-text">Chạm nhẹ để mở lá thư của chúng em</p>
+          <p className="hint-text">Chạm vào lá thư để mở</p>
           <span className="hint-sparkle">✦</span>
+        </div>
+      )}
+
+      {/* Final Grand Message & Enter Button */}
+      {isOpen && (
+        <div className={`enter-action-wrapper ${isComplete ? 'show-enter' : ''}`}>
+          <div className="closing-quote-box">
+            <p className="quote-main">"Every star has its own light.</p>
+            <p className="quote-sub">Thank you for helping us shine."</p>
+          </div>
+
+          <button
+            type="button"
+            className="enter-memories-btn"
+            onClick={onEnterSite}
+            autoFocus
+          >
+            <span className="btn-starlight" aria-hidden="true">✦</span>
+            <span className="btn-label">ENTER OUR MEMORIES</span>
+            <span className="btn-arrow" aria-hidden="true">→</span>
+          </button>
         </div>
       )}
     </div>
