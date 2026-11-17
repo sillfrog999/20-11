@@ -1,111 +1,157 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from './lib/supabase'
-import Greetings from './components/Greetings'
-import Memories from './components/Memories'
-import Music from './components/Music'
-import { Media } from './components/Media'
-import { kindOf } from './lib/media'
 import { startFlowers } from './lib/flowers'
-
-const LETTER = [
-  'Chúng em chân thành cảm ơn cô.',
-  'Môn Toán tuy khô khan nhưng khi cô dạy chúng em, nó đã trở thành một phần kiến thức thú vị và khơi gợi sự chú ý, hứng thú trong chúng em.',
-  'Đôi lúc cô có hơi nghiêm khắc và quát nạt, nhưng tất cả chúng em đều biết rằng cô cũng chỉ muốn tốt cho lớp hơn và giúp chúng em chú ý học hơn.',
-  'Sau tất cả, nhân dịp 20/11, cả tập thể lớp 9H2 xin chúc mừng cô ngày 20/11 vui vẻ.',
-  'Chúng em kính chúc cô luôn mạnh khỏe, hạnh phúc và giữ mãi nhiệt huyết với nghề giáo.',
-]
-
-function Gratitude({ teacher }: { teacher: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), { threshold: 0.2 })
-    ref.current?.querySelectorAll('.rv').forEach(n => io.observe(n))
-    return () => io.disconnect()
-  }, [])
-  return (
-    <section id="gratitude" className="section">
-      <p className="kicker">03</p><h2>Our Gratitude</h2>
-      <p className="hand">Gửi {teacher},</p>
-      <div ref={ref} className="paper letter">
-        {LETTER.map((p, i) => <p key={i} className="rv" style={{ transitionDelay: `${i * 120}ms` }}>{p}</p>)}
-        <div className="divider" aria-hidden>❦</div>
-        <p className="hand rv">With love, Class 9H2</p>
-        <p className="date rv">20 November 2026</p>
-      </div>
-    </section>
-  )
-}
-
-function Gift({ onOpen, message, mediaPath }: { onOpen: () => void; message: string; mediaPath: string }) {
-  const [opened, setOpened] = useState(false)
-  return (
-    <section id="gift" className="section center">
-      <button className={'gift' + (opened ? ' opened' : '')} aria-label="Mở món quà" disabled={opened} onClick={() => { setOpened(true); onOpen() }}>
-        <span className="lid" /><span className="box" />
-      </button>
-      {!opened && <p className="hand">Chạm để mở món quà</p>}
-      {opened && (
-        <div className="finale">
-          {mediaPath && <div className="final-media"><Media path={mediaPath} type={kindOf(mediaPath)} /></div>}
-          <p className="final-msg">{message}</p>
-          <h3>CẢM ƠN CÔ VÌ ĐÃ ĐỒNG HÀNH CÙNG 9H2</h3>
-          <p className="hand big">Happy Vietnamese Teachers' Day!</p>
-          <p className="date">Your Students — Class 9H2</p>
-        </div>
-      )}
-    </section>
-  )
-}
+import { musicEngine } from './lib/audio'
+import { Navigation } from './components/Navigation'
+import { Greetings } from './components/Greetings'
+import { Memories } from './components/Memories'
+import { ConfessionRoom } from './components/ConfessionRoom'
+import { Gratitude } from './components/Gratitude'
+import { FinalGift } from './components/FinalGift'
+import { AdminPanel } from './components/AdminPanel'
+import { UniverseIntro } from './components/universe/UniverseIntro'
 
 export default function App() {
   const [entered, setEntered] = useState(false)
   const [opening, setOpening] = useState(false)
   const [flowersOn, setFlowersOn] = useState(true)
-  const [cfg, setCfg] = useState<Record<string, string>>({})
-  useEffect(() => {
-    supabase?.from('site_settings').select('key,value').then(({ data }) => setCfg(Object.fromEntries((data ?? []).map(r => [r.key, r.value]))))
-  }, [])
-  const allowAnon = cfg.allow_anonymous !== 'false'
+  const [showAdmin, setShowAdmin] = useState(false)
+
   const layer = useRef<HTMLDivElement>(null)
-  const fl = useRef<ReturnType<typeof startFlowers> | null>(null)
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const flowersController = useRef<ReturnType<typeof startFlowers> | null>(null)
+  const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  // Initialize falling flowers
   useEffect(() => {
-    if (!layer.current || reduced) return
-    fl.current = startFlowers(layer.current)
-    return () => fl.current?.stop()
-  }, [reduced])
-  useEffect(() => { fl.current?.setEnabled(flowersOn) }, [flowersOn])
+    if (!layer.current || reducedMotion) return
+    flowersController.current = startFlowers(layer.current)
+    return () => flowersController.current?.stop()
+  }, [reducedMotion])
 
-  const enter = () => { setOpening(true); setTimeout(() => setEntered(true), reduced ? 0 : 1400) }
+  // Sync flowers enabled state
+  useEffect(() => {
+    flowersController.current?.setEnabled(flowersOn)
+  }, [flowersOn])
+
+  // Check URL route for /admin or #admin
+  useEffect(() => {
+    const checkRoute = () => {
+      if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
+        setShowAdmin(true)
+        setEntered(true)
+      }
+    }
+    checkRoute()
+    window.addEventListener('popstate', checkRoute)
+    return () => window.removeEventListener('popstate', checkRoute)
+  }, [])
+
+  // Enter experience
+  const handleEnterExperience = () => {
+    setOpening(true)
+    // Start gentle music upon intentional user interaction
+    musicEngine.play().catch(() => {})
+
+    setTimeout(() => {
+      setEntered(true)
+    }, reducedMotion ? 0 : 1200)
+  }
+
+  const handleOpenGiftBurst = () => {
+    flowersController.current?.burst()
+  }
 
   return (
-    <>
+    <div className="app-root">
+      {/* Falling flowers container */}
       <div ref={layer} className="flowers" aria-hidden="true" />
+
+      {/* 60-Second Cinematic Universe Intro */}
       {!entered && (
-        <div className={'intro' + (opening ? ' opening' : '')}>
-          <div className="envelope" aria-hidden><div className="flap" /><div className="seal" /></div>
-          <p className="kicker">20 NOVEMBER 2026 — CLASS 9H2</p>
-          <h1>Dear Our Teacher</h1><p className="hand big">A Letter for You.</p>
-          <button className="btn" onClick={enter}>OPEN YOUR LETTER</button>
-          <button className="link" onClick={() => setEntered(true)}>Bỏ qua</button>
-        </div>
+        <UniverseIntro
+          onComplete={() => {
+            setEntered(true)
+            musicEngine.play().catch(() => {})
+          }}
+        />
       )}
+
+      {/* Main Experience */}
       {entered && (
         <>
-          <header className="nav"><a href="#top" className="mark">A LETTER FOR YOU</a>
-            <nav><a href="#messages">01 Messages</a><a href="#memories">02 Memories</a><a href="#gratitude">03 Gratitude</a></nav>
-            <button className="link" aria-pressed={flowersOn} onClick={() => setFlowersOn(v => !v)}>{flowersOn ? 'Tắt hoa rơi' : 'Bật hoa rơi'}</button>
-            <Music />
-          </header>
-          <main id="top">
-            <Greetings allowAnon={allowAnon} />
-            <Memories allowAnon={allowAnon} />
-            <Gratitude teacher={cfg.teacher_name || 'Cô'} />
-            <Gift onOpen={() => fl.current?.burst()} message={cfg.final_message || 'Chúng em kính chúc cô luôn mạnh khỏe, hạnh phúc và giữ mãi nhiệt huyết với nghề giáo.'} mediaPath={cfg.final_media_path || ''} />
+          <Navigation
+            flowersOn={flowersOn}
+            onToggleFlowers={() => setFlowersOn(prev => !prev)}
+            onOpenAdmin={() => setShowAdmin(true)}
+            onReplayIntro={() => setEntered(false)}
+          />
+
+          <main id="top" className="main-content">
+            {/* Hero Banner */}
+            <section className="hero-editorial">
+              <p className="kicker hero-kicker">TRI ÂN NGÀY NHÀ GIÁO VIỆT NAM 20.11</p>
+              <h1 className="hero-headline">Người Gieo Hạt & Người Lái Đò</h1>
+              <p className="hand hero-subscript">Dành tặng cô giáo chủ nhiệm với muôn vàn tình cảm của tập thể 9H2</p>
+              <div className="hero-flourish" aria-hidden="true">❦</div>
+            </section>
+
+            {/* 01 Messages */}
+            <Greetings />
+
+            {/* 02 Memories */}
+            <Memories />
+
+            {/* 03 Confessions */}
+            <ConfessionRoom />
+
+            {/* 04 Gratitude */}
+            <Gratitude />
+
+            {/* 05 Final Gift */}
+            <FinalGift onOpenGift={handleOpenGiftBurst} />
           </main>
+
+          {/* Footer */}
+          <footer className="site-footer">
+            <div className="footer-container">
+              <div className="footer-crest" aria-hidden="true">❦</div>
+              <p className="hand footer-lead">Thank you for being our teacher, our mentor, and our guiding star.</p>
+              <p className="footer-copy">
+                Thiết kế và thực hiện với trọn vẹn tình yêu thương bởi <strong>Tập thể Lớp 9H2</strong> • Niên khóa 2026 - 2027
+              </p>
+              <div className="footer-links">
+                <a href="#top">Về đầu trang ↑</a>
+                <button
+                  type="button"
+                  className="footer-admin-btn"
+                  onClick={() => setEntered(false)}
+                  title="Xem lại Cinematic 60-Second Universe Intro"
+                >
+                  ✨ Xem lại Universe Intro
+                </button>
+                <button
+                  type="button"
+                  className="footer-admin-btn"
+                  onClick={() => setShowAdmin(true)}
+                >
+                  Khu vực Quản trị 9H2
+                </button>
+              </div>
+            </div>
+          </footer>
+
+          {/* Admin Panel Modal */}
+          {showAdmin && (
+            <AdminPanel
+              onClose={() => {
+                setShowAdmin(false)
+                if (window.location.hash === '#admin') {
+                  history.pushState(null, '', window.location.pathname)
+                }
+              }}
+            />
+          )}
         </>
       )}
-    </>
+    </div>
   )
 }
