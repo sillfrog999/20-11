@@ -277,7 +277,7 @@ export function Greetings() {
             <input
               id="greeting-author"
               type="text"
-              placeholder={isAnonymous ? 'Đang chọn chế độ gửi ẩn danh' : 'Ví dụ: Nguyễn Minh Anh, Bàn 3...'}
+              placeholder={isAnonymous ? 'Đang chọn chế độ gửi ẩn danh' : 'Ví dụ: ?, Bàn 3...'}
               value={name}
               maxLength={60}
               disabled={isAnonymous}
