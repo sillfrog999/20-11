@@ -3,12 +3,16 @@ import { musicEngine } from '../lib/audio'
 
 export function AudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTrack, setCurrentTrack] = useState(musicEngine.getCurrentTrack())
   const [isMuted, setIsMuted] = useState(musicEngine.getIsMuted())
   const [volume, setVolume] = useState(musicEngine.getVolume())
   const [showVolume, setShowVolume] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = musicEngine.subscribe(playing => setIsPlaying(playing))
+    const unsubscribe = musicEngine.subscribe((playing, trackIndex) => {
+      setIsPlaying(playing)
+      setCurrentTrack(trackIndex)
+    })
     return () => unsubscribe()
   }, [])
 
@@ -66,6 +70,18 @@ export function AudioPlayer() {
           >
             {isMuted || volume === 0 ? '🔇' : '🔊'}
           </button>
+          <button
+            type="button"
+            className="mute-btn next-track-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              musicEngine.nextTrack()
+            }}
+            title="Chuyển bài tiếp theo (1 ⇄ 2)"
+            aria-label="Chuyển bài tiếp theo"
+          >
+            ⏭
+          </button>
         </div>
       )}
 
@@ -73,15 +89,15 @@ export function AudioPlayer() {
         type="button"
         className={`audio-btn ${isPlaying ? 'playing' : ''}`}
         onClick={handleTogglePlay}
-        title={isPlaying ? 'Tạm dừng nhạc hộp nhạc' : 'Phát nhạc nền'}
+        title={isPlaying ? 'Tạm dừng nhạc nền' : 'Phát nhạc nền tri ân'}
         aria-pressed={isPlaying}
-        aria-label={isPlaying ? 'Tạm dừng nhạc hộp nhạc' : 'Phát nhạc nền'}
+        aria-label={isPlaying ? 'Tạm dừng nhạc nền' : 'Phát nhạc nền tri ân'}
       >
         <span className="vinyl-icon" aria-hidden="true">
           <span className="vinyl-center" />
         </span>
         <span className="audio-label">
-          {isPlaying ? 'Hộp nhạc: Đang phát ♫' : 'Bật nhạc ♫'}
+          {isPlaying ? `Nhạc nền (${currentTrack + 1}/2) ♫` : 'Bật nhạc nền ♫'}
         </span>
       </button>
     </div>
