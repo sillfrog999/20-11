@@ -4,75 +4,8 @@ import { Memory } from '../types'
 import { Lightbox } from './Lightbox'
 import { uploadMediaFile } from '../lib/storage'
 
-// Initial curated scrapbook moments of Class 9H2
-const DEFAULT_MEMORIES: Memory[] = [
-  {
-    id: 'mem-1',
-    title: 'Tiết Toán Hình Hôm Đó',
-    caption: 'Bảng đầy những hình chóp, hình nón và góc lượng giác. Cô vừa vẽ đường cao vừa hỏi "Mấy đứa có thấy cái đỉnh nó cao bằng ước mơ của lớp không?". Cả lớp cười lăn lộn.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Minh Anh (Lớp trưởng)',
-    tag: 'Tiết học',
-    created_at: '2026-10-15T08:30:00Z',
-    sort_order: 1
-  },
-  {
-    id: 'mem-2',
-    title: 'Bất Ngờ Sinh Nhật Cô',
-    caption: 'Giả vờ cãi nhau to trong giờ sinh hoạt lớp để cô lo lắng chạy vào, rồi bất ngờ òa lên chúc mừng sinh nhật cô cùng chiếc bánh kem tự làm vụng về. Cô rưng rưng nước mắt.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Tập thể 9H2',
-    tag: 'Kỷ niệm đẹp',
-    created_at: '2026-10-20T14:15:00Z',
-    sort_order: 2
-  },
-  {
-    id: 'mem-3',
-    title: 'Giờ Ra Chơi Bất Ổn Của Tổ 2',
-    caption: 'Tổ 2 đem bánh tráng trộn ăn vụng bị cô bắt quả tang. Cô không phạt mà chỉ bảo: "Ăn xong nhớ dọn sạch kẻo kiến cắn bảng nha mấy bạn". Đáng yêu xỉu!',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Quân (Bàn 4)',
-    tag: 'Chuyện vui',
-    created_at: '2026-11-02T10:00:00Z',
-    sort_order: 3
-  },
-  {
-    id: 'mem-4',
-    title: 'Góc Cửa Sổ Mùa Thu 9H2',
-    caption: 'Nắng tháng 11 chiếu qua song cửa lớp học, trên bàn cô là bình hoa cúc nhỏ chúng em hái tặng. Một khoảng trời tuổi học trò bình yên.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Hà Linh',
-    tag: 'Khoảnh khắc',
-    created_at: '2026-11-05T09:45:00Z',
-    sort_order: 4
-  },
-  {
-    id: 'mem-5',
-    title: 'Buổi Tập Văn Nghệ 20/11',
-    caption: 'Tiết mục múa của lớp tuy có đứa bước sai nhịp, có đứa quên động tác nhưng tinh thần cổ vũ thì rực lửa. Cô ngồi dưới chấm điểm mà cười toe toét.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Ban Văn Thể',
-    tag: '20/11',
-    created_at: '2026-11-10T16:20:00Z',
-    sort_order: 5
-  },
-  {
-    id: 'mem-6',
-    title: 'Đóa Hồng Tươi Thắm Dành Cho Cô',
-    caption: 'Mỗi bông hoa là một tấm lòng, đại diện cho từng thành viên trong gia đình nhỏ 9H2 gửi đến cô chủ nhiệm kính mến.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
-    author_name: 'Cả lớp 9H2',
-    tag: 'Tri ân',
-    created_at: '2026-11-14T11:00:00Z',
-    sort_order: 6
-  }
-]
+// Curated scrapbook moments of Class 9H2 (Sample moments cleared)
+const DEFAULT_MEMORIES: Memory[] = []
 
 export function Memories() {
   const [memories, setMemories] = useState<Memory[]>(DEFAULT_MEMORIES)
@@ -101,7 +34,7 @@ export function Memories() {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false })
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       setMemories(data)
     }
   }
@@ -299,6 +232,18 @@ export function Memories() {
           )
         })}
       </div>
+
+      {filteredMemories.length === 0 && (
+        <div className="paper empty-wall" style={{ margin: '2rem auto', textAlign: 'center', padding: '3.5rem 1.5rem', maxWidth: '520px' }}>
+          <span className="empty-icon" style={{ fontSize: '2.8rem', display: 'block', marginBottom: '0.8rem' }}>📷</span>
+          <p className="empty-title" style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--burgundy)', marginBottom: '0.5rem' }}>
+            Chưa có kỷ niệm nào trong sổ lưu bút
+          </p>
+          <p className="empty-sub" style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', lineHeight: 1.6 }}>
+            Hãy bấm nút <strong>"+ Thêm kỷ niệm mới"</strong> ở trên để lưu lại những hình ảnh và thước phim thanh xuân đáng nhớ của lớp mình cùng cô nhé!
+          </p>
+        </div>
+      )}
 
       {/* Lightbox */}
       {selectedMemoryIndex !== null && filteredMemories[selectedMemoryIndex] && (
