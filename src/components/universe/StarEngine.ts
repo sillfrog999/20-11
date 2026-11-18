@@ -202,67 +202,36 @@ export class StarEngine {
       }
     }
 
-    // Max distance for drawing connection lines
-    const maxDistance = w < 768 ? 95 : 140
-    const maxDegree = 3 // Max connections per star
-
-    // Reset degree counters
-    for (let i = 0; i < this.stars.length; i++) {
-      this.stars[i].connectionsCount = 0
-    }
-
-    // Procedural pulse traveling through constellation
-    this.autoPulseTime += 0.012
-    const pulseCenterIdx = Math.floor(Math.abs(Math.sin(this.autoPulseTime * 0.3)) * this.stars.length)
-    const pulseStar = this.stars[pulseCenterIdx]
-
     if (connectionAlpha > 0.01) {
+      const maxDistance = w < 768 ? 85 : 125
+      const maxDistSq = maxDistance * maxDistance
+      this.autoPulseTime += 0.015
+
       ctx.save()
-      ctx.lineWidth = 0.85
+      ctx.lineWidth = 0.8
+      ctx.strokeStyle = `rgba(185, 169, 232, ${0.45 * connectionAlpha})`
+      ctx.beginPath()
 
-      for (let i = 0; i < this.stars.length; i++) {
+      // Limit checking to near foreground stars for smooth performance without stutter
+      const checkCount = Math.min(this.stars.length, 120)
+      for (let i = 0; i < checkCount; i++) {
         const s1 = this.stars[i]
-        if (s1.connectionsCount >= maxDegree) continue
-
-        for (let j = i + 1; j < this.stars.length; j++) {
+        for (let j = i + 1; j < checkCount; j++) {
           const s2 = this.stars[j]
-          if (s2.connectionsCount >= maxDegree) continue
+          // Depth similarity filter creates natural 3D constellations
+          if (Math.abs(s1.z - s2.z) > 0.32) continue
 
           const dx = s1.x - s2.x
           const dy = s1.y - s2.y
           const distSq = dx * dx + dy * dy
 
-          if (distSq < maxDistance * maxDistance) {
-            const dist = Math.sqrt(distSq)
-            const proximityFactor = 1 - dist / maxDistance
-
-            // Bonus glow if near pulse star or near pointer
-            let pulseBonus = 0
-            if (pulseStar) {
-              const dPulse = Math.hypot(s1.x - pulseStar.x, s1.y - pulseStar.y)
-              if (dPulse < 220) pulseBonus += (1 - dPulse / 220) * 0.4
-            }
-
-            if (this.mouseX > 0) {
-              const dMouse = Math.hypot((s1.x + s2.x) * 0.5 - this.mouseX, (s1.y + s2.y) * 0.5 - this.mouseY)
-              if (dMouse < 180) pulseBonus += (1 - dMouse / 180) * 0.65
-            }
-
-            const lineOpacity = Math.min(0.85, (proximityFactor * 0.35 + pulseBonus) * connectionAlpha)
-
-            if (lineOpacity > 0.02) {
-              ctx.strokeStyle = `rgba(185, 169, 232, ${lineOpacity})`
-              ctx.beginPath()
-              ctx.moveTo(s1.x, s1.y)
-              ctx.lineTo(s2.x, s2.y)
-              ctx.stroke()
-
-              s1.connectionsCount++
-              s2.connectionsCount++
-            }
+          if (distSq < maxDistSq) {
+            ctx.moveTo(s1.x, s1.y)
+            ctx.lineTo(s2.x, s2.y)
           }
         }
       }
+      ctx.stroke()
       ctx.restore()
     }
 
@@ -315,8 +284,9 @@ export class StarEngine {
         const angle = Math.atan2(dy, dx) + 0.02 * (1 - this.convergenceProgress)
         const speed = (0.6 + (1 - s.z) * 1.2) * this.convergenceProgress
 
-        s.x += Math.cos(angle) * speed + (dx / Math.max(dist, 10)) * speed * 0.5
-        s.y += Math.sin(angle) * speed + (dy / Math.max(dist, 10)) * speed * 0.5
+        const damp = Math.min(1, Math.max(0.08, dist / 50))
+        s.x += (Math.cos(angle) * speed + (dx / Math.max(dist, 1)) * speed * 0.4) * damp
+        s.y += (Math.sin(angle) * speed + (dy / Math.max(dist, 1)) * speed * 0.4) * damp
       } else {
         // Normal drift
         s.x += s.vx
