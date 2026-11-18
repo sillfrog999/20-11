@@ -3,40 +3,8 @@ import { supabase } from '../lib/supabase'
 import { Confession, Comment } from '../types'
 import { ReportModal } from './ReportModal'
 
-const INITIAL_CONFESSIONS: Confession[] = [
-  {
-    id: 'conf-1',
-    pen_name: 'Một mầm non sợ Toán hình',
-    category: 'Chuyện giờ Toán',
-    content: 'Có hôm cô gọi lên bảng chữa bài hình không gian, em run quá vẽ luôn cái hình chóp lệch hẳn sang một bên. Cô bảo: "Vẽ cái đỉnh thế này thì gió thổi một cái là đổ mất tiêu!". Lúc đó quê một cục nhưng nhớ mãi lời cô chữa.',
-    status: 'approved',
-    created_at: '2026-11-01T10:00:00Z',
-  },
-  {
-    id: 'conf-2',
-    pen_name: 'Tổ 3 bí ẩn',
-    category: 'Ăn vụng thần sầu',
-    content: 'Thật ra hôm cô bảo "Cô ngửi thấy mùi ổi ở đâu đây nhé", chính là tổ chúng em đang lén chấm muối ớt dưới ngăn bàn. Sau hôm đó cả tổ thề là không dám mang đồ ăn vào tiết cô nữa, sợ cô vừa buồn vừa đói!',
-    status: 'approved',
-    created_at: '2026-11-04T15:20:00Z',
-  },
-  {
-    id: 'conf-3',
-    pen_name: 'Chiến thần bàn cuối',
-    category: 'Lời thú tội chân thành',
-    content: 'Đôi lúc cô quát to vì lớp mất trật tự, em cũng thấy hơi sợ. Nhưng khi nhìn thấy mắt cô đỏ và giọng khản đặc sau 4 tiết liền, em mới thấy thương cô vô cùng. Cảm ơn cô vì đã không bao giờ bỏ cuộc với lớp chúng em.',
-    status: 'approved',
-    created_at: '2026-11-08T18:40:00Z',
-  },
-  {
-    id: 'conf-4',
-    pen_name: 'Cựu học sinh ngủ gật',
-    category: 'Bí mật lớp học',
-    content: 'Có lần em ngủ gật trong giờ, bị cô gõ thước lên bàn. Em giật mình đứng dậy hô "Dạ có em!". Cả lớp cười ầm lên, cô cũng bật cười rồi đưa cho em cốc nước bảo ra rửa mặt cho tỉnh. Khoảnh khắc ấy ấm áp đến tận bây giờ.',
-    status: 'approved',
-    created_at: '2026-11-12T09:15:00Z',
-  }
-]
+// Sample confessions cleared
+const INITIAL_CONFESSIONS: Confession[] = []
 
 const CONFESSION_REACTIONS = [
   { type: 'laugh', emoji: '😂', label: 'Cười xỉu' },
@@ -85,7 +53,7 @@ export function ConfessionRoom() {
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       setConfessions(data)
     }
   }
@@ -178,13 +146,16 @@ export function ConfessionRoom() {
         pen_name: finalPenName,
         category,
         content: trimmed,
-        status: 'pending',
       })
 
       setIsSubmitting(false)
 
       if (error) {
-        setStatusMsg({ ok: false, text: 'Gửi thất bại. Vui lòng thử lại sau.' })
+        console.error('Lỗi gửi thú tội Supabase:', error)
+        setStatusMsg({
+          ok: false,
+          text: error.message ? `Gửi thất bại: ${error.message}` : 'Gửi thất bại. Vui lòng thử lại sau.'
+        })
       } else {
         setContent('')
         setPenName('')
@@ -356,6 +327,18 @@ export function ConfessionRoom() {
           )
         })}
       </div>
+
+      {confessions.length === 0 && (
+        <div className="paper empty-wall" style={{ margin: '2rem auto', textAlign: 'center', padding: '3.5rem 1.5rem', maxWidth: '520px' }}>
+          <span className="empty-icon" style={{ fontSize: '2.8rem', display: 'block', marginBottom: '0.8rem' }}>🤫</span>
+          <p className="empty-title" style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--burgundy)', marginBottom: '0.5rem' }}>
+            Hòm thư bí mật đang chờ những câu chuyện đầu tiên
+          </p>
+          <p className="empty-sub" style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', lineHeight: 1.6 }}>
+            Những kỷ niệm nghịch ngợm, lời thú tội ngộ nghĩnh hay lời cảm ơn chân thành gửi đến cô... Mọi chia sẻ đều được bảo mật ẩn danh hoàn toàn!
+          </p>
+        </div>
+      )}
 
       {/* Confession Detail Modal */}
       {activeConfession && (
