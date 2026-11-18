@@ -34,7 +34,6 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
 
   // Synchronize audio state and attempt immediate auto-playback of Track 1 (3m20s)
   useEffect(() => {
-    musicEngine.setupAutoplay()
     musicEngine.play().catch(() => {})
 
     const unsub = musicEngine.subscribe((playing, _track, muted) => {
