@@ -24,7 +24,9 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
   const [sceneElapsedMs, setSceneElapsedMs] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [isWarpingOut, setIsWarpingOut] = useState(false)
-  const [progressPercent, setProgressPercent] = useState(0)
+
+  const progressFillRef = useRef<HTMLDivElement>(null)
+  const lastStateUpdateRef = useRef<number>(0)
 
   const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -83,8 +85,17 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       }
 
       const elapsed = timestamp - startTimeRef.current
-      setSceneElapsedMs(elapsed)
-      setProgressPercent(Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100))
+
+      // Direct DOM update for progress bar (smooth 60fps with 0 React overhead)
+      if (progressFillRef.current) {
+        progressFillRef.current.style.width = `${Math.min(100, (elapsed / TOTAL_TIMELINE_MS) * 100)}%`
+      }
+
+      // Smooth throttled React state updates (35fps) to prevent main thread blocking
+      if (timestamp - lastStateUpdateRef.current >= 28) {
+        lastStateUpdateRef.current = timestamp
+        setSceneElapsedMs(elapsed)
+      }
 
       // Determine current scene from timeline
       let scene: UniverseScene = 'THE_VOID'
@@ -117,28 +128,28 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     }
   }, [])
 
-  // Subtitle/quote text based on current scene
+  // Subtitle/quote text based on current scene (Vietnamese, warm & touching)
   const getSceneQuote = () => {
     switch (currentScene) {
       case 'THE_VOID':
         return {
-          kicker: 'SCENE 01 • THE VOID',
-          quote: 'Every universe begins with a single point.'
+          kicker: 'KHỞI NGUYÊN • KHOẢNG LẶNG ĐẦU TIÊN',
+          quote: 'Mọi vũ trụ bao la đều bắt đầu từ một điểm sáng nhỏ bé...'
         }
       case 'CONNECT_THE_STARS':
         return {
-          kicker: 'SCENE 02 • CONNECT THE STARS',
-          quote: 'Every point has its place.'
+          kicker: 'KẾT NỐI • NHỮNG VÌ SAO NHỎ',
+          quote: 'Mỗi chúng em là một vì sao, và nơi này là nơi chúng mình tìm thấy nhau.'
         }
       case 'OUR_CONSTELLATION':
         return {
-          kicker: 'SCENE 03 • OUR CONSTELLATION',
-          quote: 'Together, we became something beautiful.'
+          kicker: 'CHÒM SAO KÝ ỨC • THANH XUÂN 9H2',
+          quote: 'Bên nhau, chúng ta đã cùng dệt nên những năm tháng đẹp nhất của tuổi học trò.'
         }
       case 'THE_BRIGHTEST_STAR':
         return {
-          kicker: 'SCENE 04 • THE BRIGHTEST STAR',
-          quote: 'And one star helped us find our way.'
+          kicker: 'NGÔI SAO DẪN ĐƯỜNG • ÁNH SÁNG YÊU THƯƠNG',
+          quote: 'Và giữa muôn ngàn tinh tú, luôn có một vì sao ấm áp soi đường cho chúng em lớn khôn.'
         }
       default:
         return null
@@ -155,6 +166,14 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       onPointerDown={handlePointerDown}
       role="region"
       aria-label="Cinematic Intro: The Universe of 9H2"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        backgroundColor: '#080817',
+        background: 'radial-gradient(circle at 50% 50%, #15112F 0%, #080817 100%)',
+        overflow: 'hidden',
+      }}
     >
       {/* 2D Star & Math Formula Canvas */}
       <canvas ref={canvasRef} className="star-canvas" aria-hidden="true" />
@@ -166,7 +185,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       <header className="universe-top-bar">
         <div className="universe-badge">
           <span className="star-icon" aria-hidden="true">✦</span>
-          <span>THE UNIVERSE OF 9H2</span>
+          <span>VŨ TRỤ KỶ NIỆM 9H2</span>
         </div>
 
         <div className="universe-controls-group">
@@ -175,7 +194,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
             type="button"
             className="btn-cosmic btn-sound-toggle"
             onClick={handleToggleSound}
-            aria-label={isMuted ? 'Bật âm thanh vũ trụ' : 'Tắt âm thanh'}
+            aria-label={isMuted ? 'Bật âm thanh không gian' : 'Tắt âm thanh không gian'}
           >
             <span>{isMuted ? '🔇' : '✨'}</span>
             <span>{isMuted ? 'Âm thanh: Tắt' : 'Âm thanh: Bật'}</span>
@@ -187,7 +206,7 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
             className="btn-cosmic btn-skip-intro"
             onClick={handleEnterMainSite}
           >
-            <span>SKIP INTRO</span>
+            <span>Bỏ qua giới thiệu</span>
             <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -229,8 +248,9 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
       {/* Bottom Progress Bar */}
       <div className="universe-progress-bar" aria-hidden="true">
         <div
+          ref={progressFillRef}
           className="universe-progress-fill"
-          style={{ width: `${progressPercent}%` }}
+          style={{ width: '0%' }}
         />
       </div>
 
