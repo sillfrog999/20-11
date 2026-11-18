@@ -20,6 +20,11 @@ export default function App() {
   const flowersController = useRef<ReturnType<typeof startFlowers> | null>(null)
   const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  // Setup background music autoplay starting from Track 1 (3m20s)
+  useEffect(() => {
+    musicEngine.setupAutoplay()
+  }, [])
+
   // Initialize falling flowers
   useEffect(() => {
     if (!layer.current || reducedMotion) return
@@ -62,8 +67,8 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {/* Falling flowers container */}
-      <div ref={layer} className="flowers" aria-hidden="true" />
+      {/* Falling flowers container — hidden during Universe Intro */}
+      <div ref={layer} className="flowers" aria-hidden="true" style={!entered ? { display: 'none' } : undefined} />
 
       {/* 60-Second Cinematic Universe Intro */}
       {!entered && (
@@ -114,7 +119,7 @@ export default function App() {
           <footer className="site-footer">
             <div className="footer-container">
               <div className="footer-crest" aria-hidden="true">❦</div>
-              <p className="hand footer-lead">Thank you for being our teacher, our mentor, and our guiding star.</p>
+              <p className="hand footer-lead">Cảm ơn cô đã là người thầy, người cố vấn và ngôi sao dẫn đường của chúng em.</p>
               <p className="footer-copy">
                 Thiết kế và thực hiện với trọn vẹn tình yêu thương bởi <strong>Tập thể Lớp 9H2</strong> • Niên khóa 2026 - 2027
               </p>
