@@ -13,6 +13,8 @@ interface Point3D {
 
 export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstellationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const sceneTimeRef = useRef(sceneTimeMs)
+  sceneTimeRef.current = sceneTimeMs
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -30,6 +32,7 @@ export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstel
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       canvas.width = window.innerWidth * dpr
       canvas.height = window.innerHeight * dpr
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
     }
     updateSize()
@@ -237,7 +240,7 @@ export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstel
       // Segment 3: Sphere (17.5s – 21.5s)
       // Segment 4: Infinity (21.5s – 25s)
 
-      const t = sceneTimeMs
+      const t = sceneTimeRef.current
 
       // Shape 1: Triangle
       if (t >= 10000 && t < 14000) {
@@ -272,7 +275,7 @@ export function GeometryConstellation({ sceneTimeMs, isActive }: GeometryConstel
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', updateSize)
     }
-  }, [isActive, sceneTimeMs])
+  }, [isActive])
 
   if (!isActive) return null
 
