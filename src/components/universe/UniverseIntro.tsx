@@ -6,6 +6,7 @@ import { MemoryPhotos } from './MemoryPhotos'
 import { CentralStar } from './CentralStar'
 import { LetterReveal } from './LetterReveal'
 import { universeAudio } from './universeAudio'
+import { musicEngine } from '../../lib/audio'
 import './universe.css'
 
 interface UniverseIntroProps {
@@ -22,7 +23,8 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
 
   const [currentScene, setCurrentScene] = useState<UniverseScene>('THE_VOID')
   const [sceneElapsedMs, setSceneElapsedMs] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
+  const [isAudioPlaying, setIsAudioPlaying] = useState(musicEngine.getIsPlaying())
+  const [isMuted, setIsMuted] = useState(musicEngine.getIsMuted())
   const [isWarpingOut, setIsWarpingOut] = useState(false)
 
   const progressFillRef = useRef<HTMLDivElement>(null)
@@ -30,7 +32,19 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
 
   const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  // Transition to main site
+  // Synchronize audio state and attempt immediate auto-playback of Track 1 (3m20s)
+  useEffect(() => {
+    musicEngine.setupAutoplay()
+    musicEngine.play().catch(() => {})
+
+    const unsub = musicEngine.subscribe((playing, _track, muted) => {
+      setIsAudioPlaying(playing)
+      setIsMuted(muted)
+    })
+    return () => unsub()
+  }, [])
+
+  // Transition to main site without interrupting the background music
   const handleEnterMainSite = useCallback(() => {
     setIsWarpingOut(true)
     setTimeout(() => {
@@ -39,12 +53,15 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
     }, reducedMotion ? 0 : 1200)
   }, [onComplete, reducedMotion])
 
-  // Audio Toggle
+  // Audio Toggle: Controls the user's 2 background tracks directly
   const handleToggleSound = () => {
-    // Ensure audio starts on first click if not already
+    if (!isAudioPlaying) {
+      musicEngine.play().catch(() => {})
+      if (isMuted) musicEngine.setMuted(false)
+    } else {
+      musicEngine.toggleMute()
+    }
     universeAudio.start().catch(() => {})
-    const muted = universeAudio.toggleMute()
-    setIsMuted(muted)
   }
 
   // Pointer Interaction
@@ -59,6 +76,10 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Start background music immediately on user touch/click
+    if (!musicEngine.getIsPlaying()) {
+      musicEngine.play().catch(() => {})
+    }
     universeAudio.start().catch(() => {})
     if (engineRef.current) {
       engineRef.current.setPointer(e.clientX, e.clientY, true)
@@ -194,10 +215,10 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
             type="button"
             className="btn-cosmic btn-sound-toggle"
             onClick={handleToggleSound}
-            aria-label={isMuted ? 'Bật âm thanh không gian' : 'Tắt âm thanh không gian'}
+            aria-label={isMuted || !isAudioPlaying ? 'Bật âm thanh' : 'Tắt âm thanh'}
           >
-            <span>{isMuted ? '🔇' : '✨'}</span>
-            <span>{isMuted ? 'Âm thanh: Tắt' : 'Âm thanh: Bật'}</span>
+            <span>{isMuted || !isAudioPlaying ? '🔇' : '✨'}</span>
+            <span>{isMuted || !isAudioPlaying ? 'Âm thanh: Tắt' : 'Âm thanh: Bật'}</span>
           </button>
 
           {/* Skip Intro Button */}
@@ -244,6 +265,23 @@ export function UniverseIntro({ onComplete }: UniverseIntroProps) {
         isActive={currentScene === 'A_LETTER_FOR_YOU'}
         onEnterSite={handleEnterMainSite}
       />
+
+      {/* Floating Prompt if browser delayed initial autoplay */}
+      {!isAudioPlaying && (
+        <button
+          type="button"
+          className="universe-autoplay-prompt"
+          onClick={(e) => {
+            e.stopPropagation()
+            musicEngine.play().catch(() => {})
+          }}
+          aria-label="Chạm để phát nhạc nền 20/11"
+        >
+          <span className="prompt-sparkle" aria-hidden="true">✦</span>
+          <span>Chạm vào đây để lắng nghe giai điệu (3:20)</span>
+          <span className="prompt-note" aria-hidden="true">♫</span>
+        </button>
+      )}
 
       {/* Bottom Progress Bar */}
       <div className="universe-progress-bar" aria-hidden="true">
