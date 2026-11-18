@@ -108,7 +108,6 @@ export default function App() {
             <section className="hero-editorial">
               <p className="kicker hero-kicker">TRI ÂN NGÀY NHÀ GIÁO VIỆT NAM 20.11</p>
               <h1 className="hero-headline">Người Gieo Hạt & Người Lái Đò</h1>
-              <p className="hand hero-subscript">Dành tặng cô giáo chủ nhiệm với muôn vàn tình cảm của tập thể 9H2</p>
               <p className="hand hero-subscript">Muôn vàn tình cảm của tập thể 9H2 dành tặng cô Kiều Anh</p>
               <div className="hero-flourish" aria-hidden="true">❦</div>
             </section>
