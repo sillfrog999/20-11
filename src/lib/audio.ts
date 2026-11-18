@@ -1,8 +1,17 @@
-// Background Music Engine: Alternating 2-track soundtrack player with seamless loop & synth fallback
-// Track 1 <-> Track 2 alternating continuously
+// Background Music Engine: Alternating 2-track soundtrack player
+// Plays Track 1 <-> Track 2 in an infinite alternating loop across Intro and Main Site
+
+const getTrackUrl = (filename: string): string => {
+  const base = import.meta.env.BASE_URL || '/'
+  const cleanBase = base.endsWith('/') ? base : base + '/'
+  return `${cleanBase}audio/${filename}`
+}
 
 class BackgroundMusicEngine {
-  private playlist = ['/audio/track-1.mp3', '/audio/track-2.mp3']
+  private playlist: string[] = [
+    getTrackUrl('track-1.mp3'),
+    getTrackUrl('track-2.mp3')
+  ]
   private currentTrackIndex = 0
   private audioA: HTMLAudioElement | null = null
   private audioB: HTMLAudioElement | null = null
@@ -10,40 +19,8 @@ class BackgroundMusicEngine {
   private isPlaying = false
   private isMuted = false
   private volume = 0.5
-  private listeners: Set<(playing: boolean, trackIndex: number) => void> = new Set()
+  private listeners: Set<(playing: boolean, trackIndex: number, muted: boolean) => void> = new Set()
   private customUrl: string | null = null
-  private ctx: AudioContext | null = null
-  private timer: number | null = null
-
-  // Melodic fallback synth (warm nostalgic chimes)
-  private melody: Array<{ note: number; dur: number; delay: number }> = [
-    { note: 523.25, dur: 0.8, delay: 0 },
-    { note: 659.25, dur: 0.8, delay: 400 },
-    { note: 783.99, dur: 1.2, delay: 800 },
-    { note: 880.00, dur: 1.0, delay: 1400 },
-    { note: 783.99, dur: 1.4, delay: 1900 },
-    { note: 659.25, dur: 1.0, delay: 2600 },
-    { note: 587.33, dur: 1.4, delay: 3100 },
-    { note: 523.25, dur: 0.8, delay: 3900 },
-    { note: 587.33, dur: 0.8, delay: 4300 },
-    { note: 659.25, dur: 1.2, delay: 4700 },
-    { note: 523.25, dur: 1.4, delay: 5300 },
-    { note: 440.00, dur: 1.6, delay: 6000 },
-    { note: 523.25, dur: 2.0, delay: 6800 },
-    { note: 659.25, dur: 0.8, delay: 8000 },
-    { note: 783.99, dur: 0.8, delay: 8400 },
-    { note: 880.00, dur: 1.0, delay: 8800 },
-    { note: 1046.50, dur: 1.5, delay: 9300 },
-    { note: 880.00, dur: 1.0, delay: 10100 },
-    { note: 783.99, dur: 1.2, delay: 10600 },
-    { note: 659.25, dur: 1.8, delay: 11200 },
-    { note: 587.33, dur: 0.8, delay: 12200 },
-    { note: 659.25, dur: 0.8, delay: 12600 },
-    { note: 783.99, dur: 1.0, delay: 13000 },
-    { note: 587.33, dur: 1.2, delay: 13500 },
-    { note: 523.25, dur: 2.5, delay: 14200 },
-  ]
-  private loopDuration = 16000
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -54,34 +31,44 @@ class BackgroundMusicEngine {
     }
   }
 
-  public subscribe(fn: (playing: boolean, trackIndex: number) => void) {
+  public subscribe(fn: (playing: boolean, trackIndex: number, muted: boolean) => void) {
     this.listeners.add(fn)
+    // Initial call
+    fn(this.isPlaying, this.currentTrackIndex, this.isMuted)
     return () => { this.listeners.delete(fn) }
   }
 
   private notify() {
-    this.listeners.forEach(fn => fn(this.isPlaying, this.currentTrackIndex))
+    this.listeners.forEach(fn => fn(this.isPlaying, this.currentTrackIndex, this.isMuted))
   }
 
   private initAudioElements() {
     if (typeof window === 'undefined') return
+
     if (!this.audioA) {
       this.audioA = new Audio(this.playlist[0])
       this.audioA.preload = 'auto'
       this.audioA.addEventListener('ended', () => this.handleTrackEnded(0))
+      this.audioA.addEventListener('error', (e) => {
+        console.warn('Track 1 audio load error:', this.playlist[0], e)
+      })
     }
     if (!this.audioB) {
       this.audioB = new Audio(this.playlist[1])
       this.audioB.preload = 'auto'
       this.audioB.addEventListener('ended', () => this.handleTrackEnded(1))
+      this.audioB.addEventListener('error', (e) => {
+        console.warn('Track 2 audio load error:', this.playlist[1], e)
+      })
     }
   }
 
   private handleTrackEnded(endedIndex: number) {
     if (!this.isPlaying) return
 
-    // When track 0 (track-1) finishes -> automatically plays track 1 (track-2)
-    // When track 1 (track-2) finishes -> automatically plays track 0 (track-1)
+    // Alternating switch:
+    // When track 0 (track-1) finishes -> immediately play track 1 (track-2)
+    // When track 1 (track-2) finishes -> immediately play track 0 (track-1)
     const nextIndex = (endedIndex + 1) % this.playlist.length
     this.currentTrackIndex = nextIndex
 
@@ -106,7 +93,6 @@ class BackgroundMusicEngine {
   }
 
   public async play(): Promise<boolean> {
-    if (this.isPlaying) return true
     this.initAudioElements()
 
     if (this.customUrl) {
@@ -120,8 +106,9 @@ class BackgroundMusicEngine {
         this.isPlaying = true
         this.notify()
         return true
-      } catch {
-        // Fallback
+      } catch (err) {
+        console.warn('Custom audio playback error:', err)
+        return false
       }
     }
 
@@ -135,16 +122,9 @@ class BackgroundMusicEngine {
         this.notify()
         return true
       } catch (err) {
-        console.warn('Audio playback error, falling back to ambient synth:', err)
+        console.warn('Track playback prevented by browser autoplay policy until user gesture:', err)
+        return false
       }
-    }
-
-    this.initContext()
-    if (this.ctx) {
-      this.isPlaying = true
-      this.scheduleLoop()
-      this.notify()
-      return true
     }
     return false
   }
@@ -153,10 +133,6 @@ class BackgroundMusicEngine {
     this.isPlaying = false
     if (this.audioA) this.audioA.pause()
     if (this.audioB) this.audioB.pause()
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
     this.notify()
   }
 
@@ -186,6 +162,12 @@ class BackgroundMusicEngine {
     const eff = muted ? 0 : this.volume
     if (this.audioA) this.audioA.volume = eff
     if (this.audioB) this.audioB.volume = eff
+    this.notify()
+  }
+
+  public toggleMute(): boolean {
+    this.setMuted(!this.isMuted)
+    return this.isMuted
   }
 
   public getCurrentTrack(): number {
@@ -206,62 +188,6 @@ class BackgroundMusicEngine {
       this.audioB.pause()
       this.audioB = null
     }
-  }
-
-  private initContext() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      if (AudioCtx) {
-        this.ctx = new AudioCtx()
-      }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume()
-    }
-  }
-
-  private playTone(freq: number, duration: number, when: number) {
-    if (!this.ctx) return
-    const now = when
-    const osc = this.ctx.createOscillator()
-    const gain = this.ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(freq, now)
-
-    const overtone = this.ctx.createOscillator()
-    const overGain = this.ctx.createGain()
-    overtone.type = 'sine'
-    overtone.frequency.setValueAtTime(freq * 2.01, now)
-
-    const masterGain = this.isMuted ? 0 : this.volume * 0.18
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(masterGain, now + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-
-    overGain.gain.setValueAtTime(0.0001, now)
-    overGain.gain.linearRampToValueAtTime(masterGain * 0.35, now + 0.015)
-    overGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.6)
-
-    osc.connect(gain)
-    overtone.connect(overGain)
-    gain.connect(this.ctx.destination)
-    overGain.connect(this.ctx.destination)
-
-    osc.start(now)
-    overtone.start(now)
-    osc.stop(now + duration + 0.1)
-    overtone.stop(now + duration * 0.6 + 0.1)
-  }
-
-  private scheduleLoop() {
-    if (!this.isPlaying || !this.ctx) return
-    const now = this.ctx.currentTime
-    this.melody.forEach(item => {
-      this.playTone(item.note, item.dur, now + item.delay / 1000)
-    })
-    this.timer = window.setTimeout(() => {
-      if (this.isPlaying) this.scheduleLoop()
-    }, this.loopDuration)
   }
 }
 
